@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lọc dữ liệu từ bảng</title>
+  <style>
+    table, th, td {
+      border: 1px solid black;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 8px 12px;
+      text-align: left;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Select box để chọn điều kiện lọc -->
+  <label for="category">Chọn loại:</label>
+  <select id="category">
+    <option value="all">Tất cả</option>
+    <option value="A">Loại A</option>
+    <option value="B">Loại B</option>
+    <option value="C">Loại C</option>
+  </select>
+
+  <!-- Input box để nhập giá trị lọc -->
+  <label for="search">Tìm kiếm:</label>
+  <input type="text" id="search" placeholder="Nhập từ khóa để tìm kiếm">
+
+  <!-- Bảng dữ liệu -->
+  <table id="dataTable">
+    <thead>
+      <tr>
+        <th>STT</th>
+        <th>Loại</th>
+        <th>Tên</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td>A</td>
+        <td>Nguyễn Văn A</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>B</td>
+        <td>Trần Thị B</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>C</td>
+        <td>Phạm Minh C</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>A</td>
+        <td>Lê Quốc A</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>B</td>
+        <td>Đỗ Thị B</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <script>
+    // Hàm lọc dữ liệu
+    function filterTable() {
+      var category = document.getElementById('category').value; // Lấy giá trị chọn từ select
+      var search = document.getElementById('search').value.toLowerCase(); // Lấy giá trị nhập vào input
+      var rows = document.querySelectorAll('#dataTable tbody tr'); // Lấy tất cả các dòng trong bảng
+
+      rows.forEach(function(row) {
+        var cells = row.getElementsByTagName('td');
+        var categoryCell = cells[1].textContent.toLowerCase(); // Lấy giá trị loại từ cột thứ 2
+        var nameCell = cells[2].textContent.toLowerCase(); // Lấy giá trị tên từ cột thứ 3
+
+        // Kiểm tra điều kiện lọc
+        var categoryMatch = category === 'all' || categoryCell === category.toLowerCase();
+        var searchMatch = nameCell.includes(search);
+
+        // Hiển thị hoặc ẩn dòng dựa trên điều kiện lọc
+        if (categoryMatch && searchMatch) {
+          row.style.display = ''; // Hiển thị dòng nếu thỏa mãn
+        } else {
+          row.style.display = 'none'; // Ẩn dòng nếu không thỏa mãn
+        }
+      });
+    }
+
+    // Thêm sự kiện khi người dùng thay đổi lựa chọn hoặc nhập dữ liệu
+    document.getElementById('category').addEventListener('change', filterTable);
+    document.getElementById('search').addEventListener('input', filterTable);
+
+    // Gọi hàm lọc khi trang được tải
+    filterTable();
+  </script>
+
+</body>
+</html>

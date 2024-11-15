@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Danh Sách Câu Hỏi</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        /* Styling for layout */
+        .left-section {
+            width: 25%;
+            height: 100vh;
+            overflow-y: scroll;
+            padding: 10px;
+            background-color: #f8f9fa;
+        }
+
+        .right-section {
+            width: 75%;
+            height: 100vh;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        /* ComboBox and search container styling */
+        .search-container {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            /* 20px spacing between elements */
+        }
+
+        .action-buttons {
+            display: flex;
+            justify-content: flex-start;
+        }
+    
+        .action-buttons button, .action-buttons a {
+            margin-right: 10px;
+        }
+
+        #search-type {
+            width: 15%;
+            /* Main combo box takes 15% */
+        }
+
+        #source-search {
+            width: 10%;
+            /* Secondary combo boxes take 25% */
+            display: none;
+        }
+
+        #topic-search,
+        #time-search {
+            width: 25%;
+            /* Secondary combo boxes take 25% */
+            display: none;
+        }
+
+        .search-container input[type="text"],
+        #start-date,
+        #end-date {
+            width: 40%;
+            /* Search input takes 40% */
+        }
+
+        #time-search .datetime-input {
+            width: 48%;
+            /* Each datetime input takes 48% */
+        }
+
+       
+
+        .input-group {
+            width: 100%;
+            /* Full width for input group */
+        }
+    </style>
+</head>
+
+<body>
+    <div class="button-group mt-3">
+        <button class="btn btn-secondary" onclick="navigateToPage('page1')"><a href="./app_web">Dữ liệu web</a></button>
+        <button class="btn btn-secondary" onclick="navigateToPage('page2')"><a href="./app_tc">Dữ liệu thủ công</a>
+        </button>
+    </div>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-3 left-section">
+                <h4>Nhập Văn Bản</h4>
+                <textarea class="form-control text-area" rows="25" id="textAreaId"
+                    placeholder="Nhập các đoạn văn bản vào đây..."></textarea>
+                <div class="combo-box-group">
+                    <select class="form-control" id="data-source">
+                        <option value="chatgpt">ChatGPT</option>
+                        <option value="gemini">Gemini</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="collectData()">Thu Thập Dữ Liệu</button>
+                </div>
+            </div>
+
+            <div class="col-md-9 right-section">
+                <h2>Danh Sách Câu Hỏi</h2>
+                <div class="row mb-3 search-container d-flex align-items-center" style="gap: 50px;">
+                    <!-- Combobox Đề tài -->
+                    <div class="form-group d-flex align-items-center" style="margin-bottom: 0;">
+                        <label for="topic-select" style="font-weight: bold; margin-right: 5px;">Đề tài:</label>
+                        <select class="form-control" id="topic-select" name="topic" onchange="submitSearch()" style="width: 150px;">
+                            <option value="all">Tất cả</option>
+                            {% set topics = [] %}
+                            {% for question in questions %}
+                                {% if question[7] not in topics %}
+                                    {% set _ = topics.append(question[7]) %}
+                                {% endif %}
+                            {% endfor %}
+                            {% for topic in topics %}
+                                <option value="{{ topic }}">{{ topic }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                
+                    <!-- Input Nguồn -->
+                    <div class="form-group d-flex align-items-center" style="margin-bottom: 0;">
+                        <label for="source-input" style="font-weight: bold; margin-right: 5px;">Nguồn:</label>
+                        <input type="text" class="form-control" id="source-input" name="source" placeholder="Nhập Nguồn..." style="width: 150px;" oninput="submitSearch()">
+                    </div>
+                
+                    <!-- Date Range -->
+                    <div class="form-group d-flex align-items-center" style="margin-bottom: 0;">
+                        <label for="start-date" style="font-weight: bold; margin-right: 5px;">Ngày bắt đầu:</label>
+                        <input type="datetime-local" id="start-date" class="datetime-input form-control" name="start_date" style="width: 170px;" >
+                        <label for="end-date" style="font-weight: bold; margin-left: 10px; margin-right: 5px;">đến</label>
+                        <input type="datetime-local" id="end-date" class="datetime-input form-control" name="end_date" style="width: 170px;" onchange="submitSearch()">
+                    </div>
+                
+                    <!-- Search bar -->
+                    <div class="form-group">
+                        <input type="text" class="form-control" id="search-input" name="query" placeholder="Tìm kiếm câu hỏi..." style="width: 500px;" oninput="submitSearch()">
+                    </div>
+                </div>
+
+                <table class="table" id="dataTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Câu Hỏi</th>
+                            <th>Hành Động</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for question in questions %}
+                        <tr>
+                            <td>{{ question[0] }}</td>
+                            <td>{{ question[1] }}</td>
+                            <td class="action-buttons">
+                                <button class="btn btn-info" data-toggle="modal" data-target="#viewModal"
+                                    data-question="{{ question[1] }}" data-answer_a="{{ question[2] }}"
+                                    data-answer_b="{{ question[3] }}" data-answer_c="{{ question[4] }}"
+                                    data-answer_d="{{ question[5] }}" data-correct_answer="{{ question[6] }} "
+                                    data-detai="{{ question[7] }}" data-nguon="{{ question[8] }}"
+                                    data-thoigian="{{ question[9] }}">
+                                    Xem
+                                </button>
+                                <button class="btn btn-warning" data-toggle="modal" data-target="#editModal"
+                                    data-id="{{ question[0] }}" data-question="{{ question[1] }}"
+                                    data-answer_a="{{ question[2] }}" data-answer_b="{{ question[3] }}"
+                                    data-answer_c="{{ question[4] }}" data-answer_d="{{ question[5] }}"
+                                    data-correct_answer="{{ question[6] }}">
+                                    Sửa
+                                </button>
+                                <a href="{{ url_for('ai_delete_question', id=question[0]) }}" class="btn btn-danger"
+                                    onclick="return confirm('Bạn có chắc chắn muốn xóa câu hỏi này không?');">Xóa</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    
+    
+    <!-- Modal Xem chi tiết -->
+    <div class="modal fade" id="viewModal" tabindex="-1" role="dialog" aria-labelledby="viewModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="viewModalLabel">Chi Tiết Câu Hỏi</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Câu hỏi:</strong> <span id="view-question"></span></p>
+                    <p><strong>Đáp án A:</strong> <span id="view-answer_a"></span></p>
+                    <p><strong>Đáp án B:</strong> <span id="view-answer_b"></span></p>
+                    <p><strong>Đáp án C:</strong> <span id="view-answer_c"></span></p>
+                    <p><strong>Đáp án D:</strong> <span id="view-answer_d"></span></p>
+                    <p><strong>Đáp án đúng:</strong> <span id="view-correct_answer"></span></p>
+                    <p><strong>Đề tài:</strong> <span id="view-detai"></span></p>
+                    <p><strong>Nguồn:</strong> <span id="view-nguon"></span></p>
+                    <p><strong>Thời gian:</strong> <span id="view-thoigian"></span></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Đóng</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Edit Modal -->
+    <div class="modal fade" id="editModal" tabindex="-1" role="dialog" aria-labelledby="editModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <form id="edit-form" method="POST">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editModalLabel">Sửa Câu Hỏi</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Đóng">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="id" id="edit-id">
+                        <div class="form-group">
+                            <label for="edit-question">Câu Hỏi:</label>
+                            <input type="text" class="form-control" name="cau_hoi" id="edit-question" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-answer_a">Đáp Án A:</label>
+                            <input type="text" class="form-control" name="dap_an_a" id="edit-answer_a" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-answer_b">Đáp Án B:</label>
+                            <input type="text" class="form-control" name="dap_an_b" id="edit-answer_b" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-answer_c">Đáp Án C:</label>
+                            <input type="text" class="form-control" name="dap_an_c" id="edit-answer_c" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-answer_d">Đáp Án D:</label>
+                            <input type="text" class="form-control" name="dap_an_d" id="edit-answer_d" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-correct_answer">Đáp Án Đúng:</label>
+                            <input type="text" class="form-control" name="dap_an_dung" id="edit-correct_answer"
+                                required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Đóng</button>
+                        <button type="submit" class="btn btn-primary">Cập Nhật</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        $(document).ready(function() {
+            // Đảm bảo chỉ thêm sự kiện click vào các phần tử dropdown-item khi DOM đã tải xong
+            $(".dropdown-item").on("click", function(event) {
+                event.preventDefault(); // Ngừng hành động mặc định (chuyển hướng link)
+
+                const url = $(this).data("link"); // Lấy URL từ thuộc tính data-link
+
+                if (url) {
+                    console.log("Đang xử lý URL: " + url); // In URL ra console để kiểm tra
+
+                    // Gửi yêu cầu AJAX để lấy câu hỏi từ Flask với URL đã chọn
+                    fetch("/fetch_questions", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({ url: url })  // Gửi URL trong phần thân của yêu cầu
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert("Dữ liệu câu hỏi đã được tải về thành công!");
+                            console.log("Câu hỏi:", data.questions); // Log câu hỏi nếu muốn
+                            location.reload();  // Tải lại trang để hiển thị danh sách câu hỏi mới
+                        } else {
+                            alert("Không thể tải dữ liệu câu hỏi.");
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Lỗi:", error); // Xử lý lỗi nếu có
+                    });
+                } else {
+                    alert("URL không hợp lệ.");
+                }
+            });
+        });
+
+
+
+        // JavaScript for modal to populate data on view button click
+        $('#viewModal').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget);  // Lấy button kích hoạt modal
+            var question = button.data('question');
+            var answer_a = button.data('answer_a');
+            var answer_b = button.data('answer_b');
+            var answer_c = button.data('answer_c');
+            var answer_d = button.data('answer_d');
+            var correct_answer = button.data('correct_answer');
+            var detai = button.data('detai');       // Đề Tài
+            var nguon = button.data('nguon');       // Nguồn
+            var link = button.data('link'); 
+            var thoigian = button.data('thoigian'); // Thêm thời gian
+
+            // Cập nhật nội dung của modal với dữ liệu từ button
+            var modal = $(this);
+            modal.find('#view-question').text(question);
+            modal.find('#view-answer_a').text(answer_a);
+            modal.find('#view-answer_b').text(answer_b);
+            modal.find('#view-answer_c').text(answer_c);
+            modal.find('#view-answer_d').text(answer_d);
+            modal.find('#view-correct_answer').text(correct_answer);
+            modal.find('#view-detai').text(detai);
+            modal.find('#view-nguon').text(nguon);
+            modal.find('#view-link').text(link).attr("href", link);  // Thêm link
+            modal.find('#view-thoigian').text(thoigian);  // Cập nhật thời gian
+        });
+
+
+
+
+        //sửa 
+        $('#editModal').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget);
+            var id = button.data('id');
+            $('#edit-id').val(id);
+            $('#edit-question').val(button.data('question'));
+            $('#edit-answer_a').val(button.data('answer_a'));
+            $('#edit-answer_b').val(button.data('answer_b'));
+            $('#edit-answer_c').val(button.data('answer_c'));
+            $('#edit-answer_d').val(button.data('answer_d'));
+            $('#edit-correct_answer').val(button.data('correct_answer'));
+
+            $('#edit-form').attr('action', `/ai_edit_question/${id}`);
+        });
+
+
+        function collectData() {
+            const text = document.getElementById('textAreaId').value.trim();
+
+            if (!text) {
+                alert("Vui lòng nhập văn bản!");
+                return;
+            }
+
+            const selectedOption = document.getElementById('data-source').value;
+            const source = selectedOption === 'chatgpt' ? 'ChatGPT' : 'Gemini';
+
+            const topicRegex = /"([^"]+)"/;
+            const topicMatch = text.match(topicRegex);
+            const topic = topicMatch ? topicMatch[1] : "Chưa xác định";
+
+            const regex = /Câu\s*\d+:\s*([\s\S]+?)\nĐáp án:\s*([A-D])/g;
+            let match;
+            const questions = [];
+
+            while ((match = regex.exec(text)) !== null) {
+                const fullQuestionText = match[1].trim();
+                const correctAnswer = match[2].trim();
+                const questionText = fullQuestionText.split('?')[0].trim() + '?';
+
+                const answerRegex = /([A-D])\.\s+([^\n]+)/g;
+                const answers = {};
+                let answerMatch;
+                while ((answerMatch = answerRegex.exec(fullQuestionText)) !== null) {
+                    answers[answerMatch[1].toLowerCase()] = answerMatch[2].trim();
+                }
+
+                const questionData = {
+                    cauhoi: questionText,
+                    answer_a: answers['a'] || '',
+                    answer_b: answers['b'] || '',
+                    answer_c: answers['c'] || '',
+                    answer_d: answers['d'] || '',
+                    dapandung: correctAnswer
+                };
+
+                questions.push(questionData);
+            }
+
+            if (questions.length === 0) {
+                alert("Không tìm thấy câu hỏi hợp lệ trong văn bản.");
+                return;
+            }
+
+            fetch('/ai_insert_data_endpoint', {  // Adjust this endpoint if needed
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    topic: topic,
+                    source: source,
+                    questions: questions,
+                    timestamp: new Date().toISOString()
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                    alert("Không thể gửi dữ liệu.");
+                });
+        }
+
+        function submitSearch() {
+            // Lấy giá trị từ các input
+            const topic = document.getElementById('topic-select').value;
+            const source = document.getElementById('source-input').value.trim();
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+            const query = document.getElementById('search-input').value.trim();
+
+            // Tạo URL động chỉ với các tham số không trống
+            let url = '/ai_search_questions?';
+
+            if (topic !== "all") {
+                url += `topic=${topic}&`;
+            }
+            if (source) {
+                url += `source=${source}&`;
+            }
+            if (startDate) {
+                url += `start_date=${startDate}&`;
+            }
+            if (endDate) {
+                url += `end_date=${endDate}&`;
+            }
+            if (query) {
+                url += `query=${query}&`;
+            }
+
+            // Loại bỏ dấu & cuối cùng nếu có
+            if (url.charAt(url.length - 1) === '&') {
+                url = url.slice(0, -1);
+            }
+
+            // Gửi yêu cầu AJAX để lấy dữ liệu từ server
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log("Questions:", data.questions); // Xử lý dữ liệu trả về
+                        updateResults(data.questions); // Cập nhật kết quả lên bảng
+                    } else {
+                        console.error("Error:", data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error("Error fetching data:", error);
+                });
+        }
+
+function updateResults(questions) {
+    const tableBody = document.getElementById('dataTable').getElementsByTagName('tbody')[0];
+    tableBody.innerHTML = ''; // Xóa các dòng cũ
+
+    // Lặp qua danh sách các câu hỏi và thêm vào bảng
+    questions.forEach(question => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${question.ID}</td> <!-- ID của câu hỏi -->
+            <td>${question.cau_hoi}</td> <!-- Nội dung câu hỏi -->
+            <td class="action-buttons">
+                <!-- Nút xem chi tiết câu hỏi -->
+                <button class="btn btn-info" data-toggle="modal" data-target="#viewModal" 
+                        data-question="${question.cau_hoi}" 
+                        data-answer_a="${question.dap_an_a}" 
+                        data-answer_b="${question.dap_an_b}" 
+                        data-answer_c="${question.dap_an_c}" 
+                        data-answer_d="${question.dap_an_d}" 
+                        data-correct_answer="${question.dap_an_dung}"
+                        data-detai="${question.De_tai}" 
+                        data-nguon="${question.Nguon}" 
+                        data-link="${question.link}" 
+                        data-thoigian="${question.Thoigian}">
+                    Xem
+                </button>
+                                  
+                <!-- Nút sửa câu hỏi -->
+                <button class="btn btn-warning" data-toggle="modal" data-target="#editModal" 
+                        data-id="${question.ID}" 
+                        data-question="${question.cau_hoi}" 
+                        data-answer_a="${question.dap_an_a}" 
+                        data-answer_b="${question.dap_an_b}" 
+                        data-answer_c="${question.dap_an_c}" 
+                        data-answer_d="${question.dap_an_d}" 
+                        data-correct_answer="${question.dap_an_dung}">
+                    Sửa
+                </button>
+                
+                <!-- Nút xóa câu hỏi với xác nhận -->
+                <a href="/delete/${question.ID}" class="btn btn-danger" 
+                   onclick="return confirm('Bạn có chắc chắn muốn xóa câu hỏi này không?');">
+                    Xóa
+                </a>
+            </td>
+        `;
+        tableBody.appendChild(row); // Thêm dòng vào bảng
+    });
+}
+    </script>
+    
+</body>
+</html>
