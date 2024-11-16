@@ -243,86 +243,99 @@ def get_text_or_none(element):
     return element.get_text(strip=True) if element else None
 
 def fetch_questions_v2(url):
+   
     try:
+        # Gửi yêu cầu HTTP tới URL
         response = requests.get(url)
         response.raise_for_status()  # Kiểm tra lỗi HTTP
     except requests.exceptions.RequestException as e:
         print("Lỗi khi kết nối tới URL:", e)
         return [], None, None  # Trả về danh sách rỗng và None cho tiêu đề và thời gian
 
+    # Phân tích nội dung HTML của trang
     soup = BeautifulSoup(response.text, 'html.parser')
-    questions = []
+    questions_data = []
 
-    # Lấy tiêu đề của trang
-    title = soup.title.string.split(':')[-1].strip() if soup.title else "Không có tiêu đề"
+    # Lấy tiêu đề của trang từ thẻ <b> sau "Lưu trữ:"
+    title_tag = soup.find('b')
+    title = None
+    if title_tag:
+        # Lấy nội dung sau dấu ":" trong thẻ <b>
+        title = title_tag.get_text(strip=True).split(":")[-1].strip()
 
-    # Tìm tất cả các câu hỏi và đáp án
-    question_blocks = soup.find_all('p')
+    # Tìm tất cả các khối câu hỏi có dấu gạch ngang (hr)
+    hr_tags = soup.find_all('hr', style="border: 1px solid black;")
+    
+    # Duyệt qua các khối câu hỏi sau các thẻ <hr>
+    for hr_tag in hr_tags:
+        # Tìm thẻ <p> chứa tiêu đề "Lưu trữ:" sau ba thẻ <hr>
+        p_tag = hr_tag.find_next('p')
+        if p_tag and p_tag.b:
+            # Lấy nội dung trong thẻ <b> sau dấu "Lưu trữ:"
+            detail = p_tag.b.get_text(strip=True).split(":")[-1].strip()
 
-    for question_block in question_blocks:
-        question_text = question_block.get_text(strip=True)
+        # Tiếp theo lấy câu hỏi, bắt đầu từ thẻ <p> chứa <b> với màu xanh
+        question_tag = p_tag.find_next('p')
+        if question_tag and question_tag.b and 'Câu' in question_tag.b.get_text():
+            # Lấy nội dung câu hỏi và loại bỏ phần "Câu X:"
+            cau_hoi = question_tag.get_text(strip=True).split(":", 1)[1].strip()
 
-        # Kiểm tra xem <p> này có phải là câu hỏi hay không
-        if question_text.startswith("Câu") and ":" in question_text:
-            # Lấy câu hỏi
-            cau_hoi = question_text.split(":", 1)[1].strip()  # Phần sau dấu ":"
+        # Lấy các đáp án từ các thẻ <p> tiếp theo
+        dap_ans = []
+        for _ in range(4):  # 4 đáp án A, B, C, D
+            answer_tag = question_tag.find_next_sibling('p')
+            if answer_tag:
+                answer_text = answer_tag.get_text(strip=True)
+                # Loại bỏ "A.", "B.", "C.", "D." khỏi các đáp án
+                answer_text = answer_text.replace("A.", "").replace("B.", "").replace("C.", "").replace("D.", "").strip()
+                dap_ans.append(answer_text)
+                question_tag = answer_tag  # Cập nhật để tìm đáp án tiếp theo
 
-            # Tìm các đáp án
-            dap_ans = []
-            for _ in range(4):  # 4 đáp án A, B, C, D
-                dap_an_elem = question_block.find_next_sibling('p')
-                if dap_an_elem:
-                    answer_span = dap_an_elem.find('span')
-                    if answer_span:
-                        dap_ans.append(get_text_or_none(answer_span))
-                    question_block = dap_an_elem  # Cập nhật để tìm đáp án tiếp theo
-            
-           # Tìm đáp án đúng
-            section_block = question_block.find_next('section', class_='toggle')
-            if section_block:
-                toggle_content = section_block.find('div', class_='toggle-content')
+        # Lấy đáp án đúng từ phần <section class="toggle">
+        dap_an_dung = None
+        section_tag = question_tag.find_next('section', class_='toggle')
+        if section_tag:
+            toggle_content = section_tag.find('div', class_='toggle-content')
+            if toggle_content:
+                # Tìm đáp án đúng trong phần "Đáp án:"
+                toggle_text = toggle_content.get_text(strip=True)
+                if 'Đáp án:' in toggle_text:
+                    dap_an_dung = toggle_text.split('Đáp án:')[1].split('Giải thích:')[0].strip()
 
-                if toggle_content:
-                    # In ra nội dung để kiểm tra
-                    print("Nội dung toggle_content:", toggle_content.get_text(strip=True))
+        # Đảm bảo có đủ 4 đáp án
+        while len(dap_ans) < 4:
+            dap_ans.append(None)
 
-                    # Lấy toàn bộ nội dung
-                    toggle_text = toggle_content.get_text(strip=True)
+        # Xử lý các đáp án: Loại bỏ dấu chấm
+        dap_ans = [answer.strip().replace(".", "") if answer else None for answer in dap_ans]
+        dap_an_dung = dap_an_dung.strip().replace(".", "") if dap_an_dung else None
 
-                    # Tách phần đáp án và giải thích
-                    if 'Đáp án:' in toggle_text:
-                        # Tách nội dung tại vị trí "Đáp án:"
-                        parts = toggle_text.split('Đáp án:')[1].strip()  # Lấy phần sau "Đáp án:"
-                        dap_an_dung = parts.split('Giải thích:')[0].strip()  # Lấy phần trước "Giải thích:"
-                    else:
-                        dap_an_dung = None
-                else:
-                    dap_an_dung = None
-            else:
-                dap_an_dung = None
+        # Thêm câu hỏi vào danh sách chỉ với câu hỏi và đáp án
+        question = {
+            'question_text': cau_hoi,
+            'answers': dap_ans,
+            'correct_answer': dap_an_dung  # Đảm bảo có đáp án đúng
+        }
+        questions_data.append(question)
 
-
-            
-            # Đảm bảo có đủ 4 đáp án
-            while len(dap_ans) < 4:
-                dap_ans.append(None)
-
-            # Định dạng lại dữ liệu
-            formatted_question = (cau_hoi, dap_ans[0], dap_ans[1], dap_ans[2], dap_ans[3], dap_an_dung)
-            questions.append(formatted_question)
-
-    if not questions:
-        print("Không tìm thấy câu hỏi nào trên trang.")
-    else:
-        print(f"Tìm thấy {len(questions)} câu hỏi.")
+    # Chuyển đổi dữ liệu câu hỏi thành định dạng mong muốn
+    formatted_questions = [
+        (
+            q['question_text'],       # Câu hỏi
+            q['answers'][0],          # Đáp án A
+            q['answers'][1],          # Đáp án B
+            q['answers'][2],          # Đáp án C
+            q['answers'][3],          # Đáp án D
+            q['correct_answer']       # Đáp án đúng
+        )
+        for q in questions_data
+    ]
 
     # Lấy thời gian hiện tại
-    timestamp = datetime.now()
-
-    return questions, title, timestamp
-
-
-
+    current_time = datetime.now()
+    title = detail  # Chỉnh lại biến title với thông tin đã lấy từ "Lưu trữ"
+    
+    return formatted_questions, title, current_time
 
 
 def extract_question_data(url):
@@ -504,11 +517,21 @@ def fetch_questions():
             raise ValueError("URL is missing in the request")
 
         # Gọi hàm extract_question_data(url)
-        questions, title, timestamp = extract_question_data(url)
+        if "doctailieu" in url:
+            questions, title, timestamp = extract_question_data(url)
+            connection = connect_db_web()
+            insert_data(connection, questions, title, "Doctailieu", url, timestamp)
+        elif "vietjack" in url:
+            questions, title, timestamp = fetch_questions_v2(url)
+            connection = connect_db_web()
+            insert_data(connection, questions, title, "VietJack", url, timestamp)
+        else:
+            # Nếu không có từ nào trong URL, có thể xử lý tình huống này (ví dụ: mặc định hoặc thông báo lỗi)
+            questions, title, timestamp = None, None, None
+
         print(f"Extracted data: {questions}, {title}, {timestamp}")
+
         
-        connection = connect_db_web()
-        insert_data(connection, questions, title, "Doctailieu", url, timestamp)
         
         if questions:
             return jsonify({
