@@ -93,14 +93,7 @@
             overflow-x: auto;
         }
 
-        /* Điều chỉnh dropdown và nút bên trái */
-        .col-md-6.text-left {
-            width: calc(50% - 100px); /* Giảm 100px từ chiều rộng 50% */
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-        }
-
+        
         /* Ngăn các phần tử xuống dòng trong search container */
         .search-container {
             display: flex;
@@ -110,20 +103,26 @@
         }
 
         /* Loại bỏ padding trái của col-md-6 */
-        .col-md-6 {
-            padding-left: 0;
-        }
+      
+        .form-group {
+    text-align: left;  /* Đảm bảo căn trái cho các phần tử trong form-group */
+}
 
-        /* Giảm chiều rộng của input search */
-        .input-group input[type="text"] {
-            width: 500px;
-        }
+#dataSourceInput, #collectDataButton {
+    width: 50%; /* Đặt chiều rộng của cả input và button bằng 50% */
+    display: inline-block; /* Để chúng hiển thị theo chiều ngang */
+}
+
+#collectDataButton {
+    margin-top: 10px; /* Khoảng cách giữa input và button */
+}
+
         
     </style>
 </head>
 <body>
     <div class="button-group mt-3">
-        <button class="btn btn-secondary" onclick="navigateToPage('page1')"><a href="./app_thucong">Dữ liệu thủ công</a></button>
+        <button class="btn btn-secondary" onclick="navigateToPage('page1')"><a href="./app_tc">Dữ liệu thủ công</a></button>
         <button class="btn btn-secondary" onclick="navigateToPage('page2')"><a href="./app_ai">Dữ liệu tạo sinh</a></button>
     </div>
     
@@ -167,6 +166,20 @@
             <div class="form-group">
                 <input type="text" class="form-control" id="search-input" name="query" placeholder="Tìm kiếm câu hỏi..." style="width: 500px;" oninput="submitSearch()">
             </div>
+
+          
+            <div class="col-md-6 text-right">
+                <div class="form-group">
+                    <!-- Giảm chiều rộng của input và xếp dọc -->
+                    <input type="text" id="dataSourceInput" class="form-control" placeholder="Nhập URL dữ liệu..." style="width: 50%;"> 
+                    <button class="btn btn-primary mt-2" id="collectDataButton" style="width: 50%;">Thu Thập Dữ Liệu</button>
+                </div>
+                <!-- Nút Thu Thập Dữ Liệu dưới input -->
+              
+            </div>
+            
+            
+            
         </div>
 
     <!-- Table container -->
@@ -201,6 +214,8 @@
                         </button>
                                   
                         <!-- Nút sửa câu hỏi -->
+                        <!-- Nút sửa câu hỏi -->
+                        <!-- Nút sửa câu hỏi -->
                         <button class="btn btn-warning" data-toggle="modal" data-target="#editModal" 
                                 data-id="{{ question[0] }}" 
                                 data-question="{{ question[1] }}" 
@@ -208,9 +223,13 @@
                                 data-answer_b="{{ question[3] }}" 
                                 data-answer_c="{{ question[4] }}" 
                                 data-answer_d="{{ question[5] }}" 
-                                data-correct_answer="{{ question[6] }}">
+                                data-correct_answer="{{ question[6] }}" 
+                                data-detai="{{ question[7] }}" 
+                                data-nguon="{{ question[8] }}" 
+                                data-thoigian="{{ question[10] }}">
                             Sửa
                         </button>
+
                         
                         <!-- Nút xóa câu hỏi với xác nhận -->
                         <a href="{{ url_for('web_delete_question', id=question[0]) }}" class="btn btn-danger" 
@@ -307,41 +326,42 @@
 
     <script>
         $(document).ready(function() {
-            // Đảm bảo chỉ thêm sự kiện click vào các phần tử dropdown-item khi DOM đã tải xong
-            $(".dropdown-item").on("click", function(event) {
-                event.preventDefault(); // Ngừng hành động mặc định (chuyển hướng link)
+    // Lắng nghe sự kiện click vào nút "Thu Thập Dữ Liệu"
+    $("#collectDataButton").on("click", function(event) {
+        event.preventDefault(); // Ngừng hành động mặc định (ngừng reload trang)
 
-                const url = $(this).data("link"); // Lấy URL từ thuộc tính data-link
+        const url = $("#dataSourceInput").val().trim(); // Lấy giá trị từ input
 
-                if (url) {
-                    console.log("Đang xử lý URL: " + url); // In URL ra console để kiểm tra
+        if (url) {
+            console.log("Đang xử lý URL: " + url); // In URL ra console để kiểm tra
 
-                    // Gửi yêu cầu AJAX để lấy câu hỏi từ Flask với URL đã chọn
-                    fetch("/fetch_questions", {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify({ url: url })  // Gửi URL trong phần thân của yêu cầu
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            alert("Dữ liệu câu hỏi đã được tải về thành công!");
-                            console.log("Câu hỏi:", data.questions); // Log câu hỏi nếu muốn
-                            location.reload();  // Tải lại trang để hiển thị danh sách câu hỏi mới
-                        } else {
-                            alert("Không thể tải dữ liệu câu hỏi.");
-                        }
-                    })
-                    .catch(error => {
-                        console.error("Lỗi:", error); // Xử lý lỗi nếu có
-                    });
+            // Gửi yêu cầu AJAX để lấy câu hỏi từ Flask với URL đã nhập
+            fetch("/fetch_questions", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ url: url })  // Gửi URL trong phần thân của yêu cầu
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert("Dữ liệu câu hỏi đã được tải về thành công!");
+                    console.log("Câu hỏi:", data.questions); // Log câu hỏi nếu muốn
+                    location.reload();  // Tải lại trang để hiển thị danh sách câu hỏi mới
                 } else {
-                    alert("URL không hợp lệ.");
+                    alert("Không thể tải dữ liệu câu hỏi.");
                 }
+            })
+            .catch(error => {
+                console.error("Lỗi:", error); // Xử lý lỗi nếu có
             });
-        });
+        } else {
+            alert("Vui lòng nhập URL.");
+        }
+    });
+});
+
 
 
 
@@ -438,8 +458,7 @@
                     console.error("Error fetching data:", error);
                 });
         }
-
-function updateResults(questions) {
+        function updateResults(questions) {
     const tableBody = document.getElementById('dataTable').getElementsByTagName('tbody')[0];
     tableBody.innerHTML = ''; // Xóa các dòng cũ
 
@@ -478,15 +497,18 @@ function updateResults(questions) {
                 </button>
                 
                 <!-- Nút xóa câu hỏi với xác nhận -->
-                <a href="/delete/${question.ID}" class="btn btn-danger" 
-                   onclick="return confirm('Bạn có chắc chắn muốn xóa câu hỏi này không?');">
+                <a href="/app_web/web_delete_question/${question.ID}" class="btn btn-danger" 
+                    onclick="return confirm('Bạn có chắc chắn muốn xóa câu hỏi này không?');">
                     Xóa
-                </a>
+                    </a>
+
             </td>
         `;
         tableBody.appendChild(row); // Thêm dòng vào bảng
     });
 }
+
+
 
     </script>
     

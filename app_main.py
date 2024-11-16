@@ -68,12 +68,12 @@ def index_web():
 
 
 # Xóa câu hỏi
-@app.route('/web_delete_question/<int:id>')
+@app.route('/app_web/web_delete_question/<int:id>')
 def web_delete_question(id):
     connection = connect_db_web()
     if connection is None:
         flash("Lỗi kết nối cơ sở dữ liệu", "danger")
-        return redirect(url_for('index'))
+        return redirect(url_for('index_web'))
 
     cursor = connection.cursor()
     try:
@@ -86,17 +86,17 @@ def web_delete_question(id):
         cursor.close()
         connection.close()
 
-    return redirect(url_for('index'))
+    return redirect(url_for('index_web'))
 
 
-
+# Sửa câu hỏi
 # Sửa câu hỏi
 @app.route('/web_edit_question/<int:id>', methods=['GET', 'POST'])
 def web_edit_question(id):
     connection = connect_db_web()
     if connection is None:
         flash("Lỗi kết nối cơ sở dữ liệu", "danger")
-        return redirect(url_for('index'))
+        return redirect(url_for('web_index'))
 
     cursor = connection.cursor()
     if request.method == 'POST':
@@ -111,7 +111,7 @@ def web_edit_question(id):
 
         if not all(question_data.values()):
             flash("Tất cả các trường đều phải được điền!", "warning")
-            return redirect(url_for('edit_question', id=id))
+            return redirect(url_for('web_edit_question', id=id))
 
         try:
             query = """
@@ -129,7 +129,7 @@ def web_edit_question(id):
             cursor.close()
             connection.close()
 
-        return redirect(url_for('index'))
+        return redirect(url_for('index_web'))
 
     # Lấy câu hỏi để sửa (khi truy cập GET)
     try:
@@ -145,7 +145,10 @@ def web_edit_question(id):
         cursor.close()
         connection.close()
 
-    return render_template('edit_question.html', question=question)
+    return render_template('web_edit_question.html', question=question)
+
+
+
 
 
 
@@ -525,6 +528,7 @@ def fetch_questions():
 def app_web():
     return render_template('index_web.html')   
 
+
 # Hàm kết nối với SQL Server
 def connect_db_ai():
     try:
@@ -583,12 +587,12 @@ def index_ai():
 
 
 # Xóa câu hỏi
-@app.route('/ai_delete_question/<int:id>')
+@app.route('/app_ai/ai_delete_question/<int:id>')
 def ai_delete_question(id):
-    connection = connect_db_ai()
+    connection = tc_connect_db()
     if connection is None:
         flash("Lỗi kết nối cơ sở dữ liệu", "danger")
-        return redirect(url_for('index'))
+        return redirect(url_for('index_ai'))
 
     cursor = connection.cursor()
     try:
@@ -601,7 +605,8 @@ def ai_delete_question(id):
         cursor.close()
         connection.close()
 
-    return redirect(url_for('index'))
+    return redirect(url_for('index_ai'))
+
 
 
 
@@ -611,7 +616,7 @@ def ai_edit_question(id):
     connection = connect_db_ai()
     if connection is None:
         flash("Lỗi kết nối cơ sở dữ liệu", "danger")
-        return redirect(url_for('index'))
+        return redirect(url_for('index_ai'))
 
     cursor = connection.cursor()
     if request.method == 'POST':
@@ -644,7 +649,7 @@ def ai_edit_question(id):
             cursor.close()
             connection.close()
 
-        return redirect(url_for('index'))
+        return redirect(url_for('index_ai'))
 
     # Lấy câu hỏi để sửa (khi truy cập GET)
     try:
@@ -652,7 +657,7 @@ def ai_edit_question(id):
         question = cursor.fetchone()
         if not question:
             flash("Câu hỏi không tồn tại", "warning")
-            return redirect(url_for('index'))
+            return redirect(url_for('index_ai'))
     except Exception as e:
         flash(f"Lỗi khi truy vấn câu hỏi: {e}", "danger")
         question = None
@@ -872,6 +877,7 @@ def app_ai():
 
 
 
+
 # Hàm kết nối với SQL Server
 def tc_connect_db():
     try:
@@ -890,6 +896,7 @@ def tc_connect_db():
 
 # Trang chủ: hiển thị tất cả câu hỏi
 # Trang chủ: hiển thị tất cả câu hỏi
+@app.route('/')
 @app.route('/app_tc')
 def tc_index():
     connection = tc_connect_db()
@@ -932,7 +939,7 @@ def tc_index():
     return render_template('index_thucong.html', questions=questions)
 
 # Thêm câu hỏi
-@app.route('/app_tc/add_question', methods=['POST'])
+@app.route('/add_question', methods=['POST'])
 def tc_add_question():
     # Get the data from the form
     question_data = {
@@ -951,19 +958,19 @@ def tc_add_question():
 
     # Convert 'thoi_gian' to the correct datetime format if necessary
     try:
-        # Use datetime.datetime.strptime to avoid conflict
-        thoi_gian = datetime.datetime.strptime(question_data['thoi_gian'], '%Y-%m-%dT%H:%M')
-        question_data['thoi_gian'] = thoi_gian.strftime('%Y-%m-%d %H:%M:%S')
+        # Database expects format 'YYYY-MM-DD HH:MM:SS.000'
+        thoi_gian = datetime.strptime(question_data['thoi_gian'], '%Y-%m-%dT%H:%M')
+        question_data['thoi_gian'] = thoi_gian.strftime('%Y-%m-%d %H:%M:%S.000')
     except Exception as e:
         print(f"Error converting time: {e}")
         flash("Lỗi chuyển đổi thời gian", "danger")
-        return redirect(url_for('index'))
+        return redirect(url_for('tc_index'))
 
     # Connect to the database
     connection = tc_connect_db()
     if connection is None:
         flash("Lỗi kết nối cơ sở dữ liệu", "danger")
-        return redirect(url_for('index'))
+        return redirect(url_for('tc_index'))
 
     cursor = connection.cursor()
     
@@ -976,7 +983,7 @@ def tc_add_question():
         
         if result[0] > 0:
             flash("Câu hỏi đã tồn tại trong cơ sở dữ liệu", "warning")
-            return redirect(url_for('index'))
+            return redirect(url_for('tc_index'))
 
         # Insert metadata into Mota table
         insert_sql_dltt = """
@@ -989,7 +996,8 @@ def tc_add_question():
         
         if not maMT:
             print("Không thể lấy MaMT.")
-            return
+            flash("Lỗi khi thêm dữ liệu mô tả", "danger")
+            return redirect(url_for('tc_index'))
 
         maMT = maMT[0]  # Get the generated MaMT (metadata ID)
         print("MaMT:", maMT)
@@ -1018,7 +1026,7 @@ def tc_add_question():
         cursor.close()
         connection.close()
 
-    return redirect(url_for('index'))
+    return redirect(url_for('tc_index'))
 
 # Xóa câu hỏi
 @app.route('/app_tc/delete_question/<int:id>')
@@ -1026,7 +1034,7 @@ def tc_delete_question(id):
     connection = tc_connect_db()
     if connection is None:
         flash("Lỗi kết nối cơ sở dữ liệu", "danger")
-        return redirect(url_for('index'))
+        return redirect(url_for('tc_index'))
 
     cursor = connection.cursor()
     try:
@@ -1039,15 +1047,15 @@ def tc_delete_question(id):
         cursor.close()
         connection.close()
 
-    return redirect(url_for('index'))
+    return redirect(url_for('tc_index'))
 
 # Sửa câu hỏi
-@app.route('/app_tc/edit_question/<int:id>', methods=['GET', 'POST'])
+@app.route('/tc_edit_question/<int:id>', methods=['GET', 'POST'])
 def tc_edit_question(id):
     connection = tc_connect_db()
     if connection is None:
         flash("Lỗi kết nối cơ sở dữ liệu", "danger")
-        return redirect(url_for('index'))
+        return redirect(url_for('tc_index'))
 
     cursor = connection.cursor()
     if request.method == 'POST':
@@ -1080,7 +1088,7 @@ def tc_edit_question(id):
             cursor.close()
             connection.close()
 
-        return redirect(url_for('index'))
+        return redirect(url_for('tc_index'))
 
     # Lấy câu hỏi để sửa (khi truy cập GET)
     try:
@@ -1088,7 +1096,7 @@ def tc_edit_question(id):
         question = cursor.fetchone()
         if not question:
             flash("Câu hỏi không tồn tại", "warning")
-            return redirect(url_for('index'))
+            return redirect(url_for('tc_index'))
     except Exception as e:
         flash(f"Lỗi khi truy vấn câu hỏi: {e}", "danger")
         question = None
@@ -1099,21 +1107,29 @@ def tc_edit_question(id):
     return render_template('edit_question.html', question=question)
 
 # Tìm kiếm câu hỏi
-@app.route('/app_tc/search_questions', methods=['GET'])
+@app.route('/tc_search_questions', methods=['GET'])
 def tc_search_questions():
     query = request.args.get('query', '')
     source = request.args.get('source', '')
     topic = request.args.get('topic', '')
+    start_date = request.args.get('start_date', '')
+    end_date = request.args.get('end_date', '')
+
+    # Xử lý và định dạng ngày tháng
+    if start_date:
+        start_date = start_date.replace('T', ' ') + ":00.000"
+    if end_date:
+        end_date = end_date.replace('T', ' ') + ":59.999"
+
     connection = tc_connect_db()
 
     if connection is None:
-        flash("Lỗi kết nối cơ sở dữ liệu", "danger")
-        return redirect(url_for('index'))
+        return jsonify({"success": False, "message": "Lỗi kết nối cơ sở dữ liệu"})
 
     cursor = connection.cursor()
 
     try:
-        # Xây dựng câu truy vấn SQL với điều kiện động
+        # Xây dựng câu truy vấn SQL
         query_sql = """
             SELECT 
                 ch.ID, 
@@ -1132,80 +1148,50 @@ def tc_search_questions():
                 Mota AS m 
             ON 
                 ch.maMT = m.maMT
-            WHERE
+            WHERE 
         """
-
         conditions = []
         params = []
 
-        # Tạo các điều kiện tìm kiếm tùy thuộc vào giá trị nhập vào
         if query:
-            conditions.append("ch.cau_hoi LIKE ? OR ch.ID LIKE ?")
-            params.extend([f'%{query}%', f'%{query}%'])
-
+            conditions.append("(ch.cau_hoi LIKE ? OR ch.ID LIKE ?)")
+            params.extend([f"%{query}%", f"%{query}%"])
         if source:
             conditions.append("m.Nguon LIKE ?")
-            params.append(f'%{source}%')
-
-        if topic:
+            params.append(f"%{source}%")
+        if topic != "all":
             conditions.append("m.De_tai LIKE ?")
-            params.append(f'%{topic}%')
+            params.append(f"%{topic}%")
+        if start_date:
+            conditions.append("m.Thoigian >= ?")
+            params.append(start_date)
+        if end_date:
+            conditions.append("m.Thoigian <= ?")
+            params.append(end_date)
 
-        # Nếu không có điều kiện nào thì trả về tất cả
         if not conditions:
             conditions.append("1=1")
 
-        # Ghép nối các điều kiện
         query_sql += " AND ".join(conditions)
 
         cursor.execute(query_sql, params)
-        questions = cursor.fetchall()
+
+        # Lấy dữ liệu và chuyển thành danh sách các câu hỏi
+        rows = cursor.fetchall()
+        questions = [dict(zip([column[0] for column in cursor.description], row)) for row in rows]
+
+        return jsonify({"success": True, "questions": questions})
+
     except Exception as e:
-        flash(f"Lỗi khi truy vấn cơ sở dữ liệu: {e}", "danger")
-        questions = []
+        return jsonify({"success": False, "message": str(e)})
+
     finally:
         cursor.close()
         connection.close()
-    return render_template('index_thucong.html', questions=questions)
 
 
-@app.route('/')
-def index():
-    connection = tc_connect_db()
-    if connection is None:
-        flash("Lỗi kết nối cơ sở dữ liệu", "danger")
-        return render_template('index_thucong.html', questions=[])
 
-    cursor = connection.cursor()
-    try:
-        # Sử dụng JOIN để lấy thông tin từ cả hai bảng Cau_hoi và Mota
-        cursor.execute("""
-            SELECT 
-                ch.ID, 
-                ch.cau_hoi, 
-                ch.dap_an_a, 
-                ch.dap_an_b, 
-                ch.dap_an_c, 
-                ch.dap_an_d, 
-                ch.dap_an_dung, 
-                m.De_tai, 
-                m.Nguon,
-                m.Thoigian  -- Corrected query
-            FROM 
-                Cau_hoi AS ch
-            JOIN 
-                Mota AS m 
-            ON 
-                ch.maMT = m.maMT
-        """)
-        questions = cursor.fetchall()
-    except Exception as e:
-        flash(f"Lỗi khi truy vấn cơ sở dữ liệu: {e}", "danger")
-        questions = []
-    finally:
-        cursor.close()
-        connection.close()
-    return render_template('index_thucong.html', questions=questions)
+
 
 @app.route('/app_thucong')
 def app_tc():
