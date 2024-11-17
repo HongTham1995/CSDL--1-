@@ -242,99 +242,109 @@ def get_text_or_none(element):
     """Trả về text của element nếu tồn tại, ngược lại trả về None."""
     return element.get_text(strip=True) if element else None
 
-def fetch_questions_v2(url):
-   
-    try:
-        # Gửi yêu cầu HTTP tới URL
-        response = requests.get(url)
-        response.raise_for_status()  # Kiểm tra lỗi HTTP
-    except requests.exceptions.RequestException as e:
-        print("Lỗi khi kết nối tới URL:", e)
-        return [], None, None  # Trả về danh sách rỗng và None cho tiêu đề và thời gian
+def fetch_data(url):
+    # Gửi yêu cầu GET đến trang
+    response = requests.get(url)
+    response.raise_for_status()  # Kiểm tra lỗi nếu có
 
-    # Phân tích nội dung HTML của trang
+    # Phân tích HTML bằng BeautifulSoup
     soup = BeautifulSoup(response.text, 'html.parser')
-    questions_data = []
 
-    # Lấy tiêu đề của trang từ thẻ <b> sau "Lưu trữ:"
-    title_tag = soup.find('b')
-    title = None
-    if title_tag:
-        # Lấy nội dung sau dấu ":" trong thẻ <b>
-        title = title_tag.get_text(strip=True).split(":")[-1].strip()
+    # Lấy phần tử <div class="col-md-7 middle-col">
+    middle_col = soup.find('div', class_='col-md-7 middle-col')
+    if not middle_col:
+        print("Không tìm thấy div col-md-7 middle-col.")
+        return []
 
-    # Tìm tất cả các khối câu hỏi có dấu gạch ngang (hr)
-    hr_tags = soup.find_all('hr', style="border: 1px solid black;")
+    # Lấy thông tin tiêu đề từ <div class="vj-more">
+    vj_more = middle_col.find('div', class_='vj-more')
+    if vj_more:
+        a_tag = vj_more.find('a')
+        if a_tag:
+            title = a_tag.get_text(strip=True).split("12")[1].strip()  # Lấy phần sau số 12
+        else:
+            title = "Tiêu đề không tìm thấy"
+    else:
+        title = "Tiêu đề không tìm thấy"
     
-    # Duyệt qua các khối câu hỏi sau các thẻ <hr>
-    for hr_tag in hr_tags:
-        # Tìm thẻ <p> chứa tiêu đề "Lưu trữ:" sau ba thẻ <hr>
-        p_tag = hr_tag.find_next('p')
-        if p_tag and p_tag.b:
-            # Lấy nội dung trong thẻ <b> sau dấu "Lưu trữ:"
-            detail = p_tag.b.get_text(strip=True).split(":")[-1].strip()
+    print(f"Tiêu đề bài học: {title}")
 
-        # Tiếp theo lấy câu hỏi, bắt đầu từ thẻ <p> chứa <b> với màu xanh
-        question_tag = p_tag.find_next('p')
-        if question_tag and question_tag.b and 'Câu' in question_tag.b.get_text():
-            # Lấy nội dung câu hỏi và loại bỏ phần "Câu X:"
-            cau_hoi = question_tag.get_text(strip=True).split(":", 1)[1].strip()
+    # Danh sách chứa các câu hỏi và đáp án
+    questions = []
 
-        # Lấy các đáp án từ các thẻ <p> tiếp theo
-        dap_ans = []
-        for _ in range(4):  # 4 đáp án A, B, C, D
-            answer_tag = question_tag.find_next_sibling('p')
-            if answer_tag:
-                answer_text = answer_tag.get_text(strip=True)
-                # Loại bỏ "A.", "B.", "C.", "D." khỏi các đáp án
-                answer_text = answer_text.replace("A.", "").replace("B.", "").replace("C.", "").replace("D.", "").strip()
-                dap_ans.append(answer_text)
-                question_tag = answer_tag  # Cập nhật để tìm đáp án tiếp theo
+    # Duyệt qua các câu hỏi và đáp án
+    question_tags = middle_col.find_all('p')
+    i = 0  # Chỉ số để duyệt qua các thẻ <p>
 
-        # Lấy đáp án đúng từ phần <section class="toggle">
-        dap_an_dung = None
-        section_tag = question_tag.find_next('section', class_='toggle')
-        if section_tag:
-            toggle_content = section_tag.find('div', class_='toggle-content')
-            if toggle_content:
-                # Tìm đáp án đúng trong phần "Đáp án:"
-                toggle_text = toggle_content.get_text(strip=True)
-                if 'Đáp án:' in toggle_text:
-                    dap_an_dung = toggle_text.split('Đáp án:')[1].split('Giải thích:')[0].strip()
+    while i < len(question_tags):
+        question_tag = question_tags[i]
+        
+        # Kiểm tra nếu thẻ <p> chứa câu hỏi
+        if question_tag.b and 'Câu' in question_tag.b.get_text():
+            # Lấy nội dung câu hỏi và loại bỏ phần trước dấu ":"
+            full_question_text = question_tag.get_text(strip=True).split(":", 1)[1].strip()
 
-        # Đảm bảo có đủ 4 đáp án
-        while len(dap_ans) < 4:
-            dap_ans.append(None)
+            # Tìm vị trí dấu "?" hoặc ":" và cắt chuỗi từ đầu đến dấu đó
+            question_end_index = min(full_question_text.find('?'), full_question_text.find(':'))
+            if question_end_index != -1:
+                question_text = full_question_text[:question_end_index + 1].strip()  # Lấy đến và bao gồm dấu "?" hoặc ":"
+            else:
+                question_text = full_question_text
 
-        # Xử lý các đáp án: Loại bỏ dấu chấm
-        dap_ans = [answer.strip().replace(".", "") if answer else None for answer in dap_ans]
-        dap_an_dung = dap_an_dung.strip().replace(".", "") if dap_an_dung else None
+            # Kiểm tra nếu câu hỏi kết thúc bằng dấu "?" và có đủ điều kiện
+            if question_text.endswith('?') and 'Trả lời:' not in question_text:
+                # Tìm đáp án từ các thẻ <p> tiếp theo
+                answers = []
+                i += 1  # Tiến đến các thẻ <p> tiếp theo
+                for _ in range(4):  # Chỉ lấy 4 đáp án A, B, C, D
+                    if i < len(question_tags):
+                        answer_text = question_tags[i].get_text(strip=True)
+                        # Loại bỏ phần "A.", "B.", "C.", "D." nếu có
+                        answer_text = answer_text.replace("A.", "").replace("B.", "").replace("C.", "").replace("D.", "").strip()
+                        # Kiểm tra xem đáp án có hợp lệ không (không trống và không phải "Đáp án:")
+                        if answer_text and "Đáp án" not in answer_text:
+                            answers.append(answer_text)
+                        i += 1  # Tiến đến thẻ <p> tiếp theo
 
-        # Thêm câu hỏi vào danh sách chỉ với câu hỏi và đáp án
-        question = {
-            'question_text': cau_hoi,
-            'answers': dap_ans,
-            'correct_answer': dap_an_dung  # Đảm bảo có đáp án đúng
-        }
-        questions_data.append(question)
+                # Kiểm tra nếu có đủ 4 đáp án hợp lệ
+                if len(answers) == 4:
+                    # Lấy đáp án đúng từ phần <section class="toggle-content">
+                    dap_an_dung = None
+                    section_tag = middle_col.find_next('section', class_='toggle')
+                    if section_tag:
+                        toggle_content = section_tag.find('div', class_='toggle-content')
+                        if toggle_content:
+                            # Tìm đáp án đúng trong phần "Đáp án:"
+                            toggle_text = toggle_content.get_text(strip=True)
+                            if 'Đáp án:' in toggle_text:
+                                dap_an_dung = toggle_text.split('Đáp án:')[1].split('Giải thích:')[0].strip()
 
-    # Chuyển đổi dữ liệu câu hỏi thành định dạng mong muốn
+                    # Nếu có câu hỏi và đáp án đúng, lưu vào danh sách
+                    if dap_an_dung:
+                        # Xử lý bỏ dấu chấm không cần thiết trong đáp án đúng
+                        dap_an_dung = dap_an_dung.strip().replace(".", "") if dap_an_dung else None
+
+                        questions.append({
+                            'question': question_text,
+                            'answers': answers,
+                            'correct_answer': dap_an_dung
+                        })
+        i += 1  # Tiến đến thẻ <p> tiếp theo
+
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     formatted_questions = [
         (
-            q['question_text'],       # Câu hỏi
-            q['answers'][0],          # Đáp án A
-            q['answers'][1],          # Đáp án B
-            q['answers'][2],          # Đáp án C
-            q['answers'][3],          # Đáp án D
-            q['correct_answer']       # Đáp án đúng
+            q['question'],       # Câu hỏi
+            q['answers'][0],     # Đáp án A
+            q['answers'][1],     # Đáp án B
+            q['answers'][2],     # Đáp án C
+            q['answers'][3],     # Đáp án D
+            q['correct_answer']  # Đáp án đúng
         )
-        for q in questions_data
+        for q in questions
     ]
-
-    # Lấy thời gian hiện tại
-    current_time = datetime.now()
-    title = detail  # Chỉnh lại biến title với thông tin đã lấy từ "Lưu trữ"
     
+    # Trả về kết quả dưới dạng danh sách các câu hỏi
     return formatted_questions, title, current_time
 
 
@@ -522,7 +532,7 @@ def fetch_questions():
             connection = connect_db_web()
             insert_data(connection, questions, title, "Doctailieu", url, timestamp)
         elif "vietjack" in url:
-            questions, title, timestamp = fetch_questions_v2(url)
+            questions, title, timestamp = fetch_data(url)
             connection = connect_db_web()
             insert_data(connection, questions, title, "VietJack", url, timestamp)
         else:
