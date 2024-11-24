@@ -82,6 +82,7 @@
     <div class="button-group mt-3">
         <button class="btn btn-secondary" onclick="navigateToPage('page1')"><a href="./app_web">Dữ liệu web</a></button>
         <button class="btn btn-secondary" onclick="navigateToPage('page2')"><a href="./app_tc">Dữ liệu thủ công</a>
+        <button class="btn btn-secondary" onclick="navigateToPage('page2')"><a href="./app_all">Tất cả dữ liệu</a></button>
         </button>
     </div>
     <div class="container-fluid">
@@ -158,14 +159,18 @@
                                     data-answer_b="{{ question[3] }}" data-answer_c="{{ question[4] }}"
                                     data-answer_d="{{ question[5] }}" data-correct_answer="{{ question[6] }} "
                                     data-detai="{{ question[7] }}" data-nguon="{{ question[8] }}"
-                                    data-thoigian="{{ question[9] }}">
+                                    data-thoigian="{{ question[9] }}"
+                                    data-reviewer_1="{{ question[10] }}"
+                                    data-reviewer_2="{{ question[11] }}">
                                     Xem
                                 </button>
                                 <button class="btn btn-warning" data-toggle="modal" data-target="#editModal"
                                     data-id="{{ question[0] }}" data-question="{{ question[1] }}"
                                     data-answer_a="{{ question[2] }}" data-answer_b="{{ question[3] }}"
                                     data-answer_c="{{ question[4] }}" data-answer_d="{{ question[5] }}"
-                                    data-correct_answer="{{ question[6] }}">
+                                    data-correct_answer="{{ question[6] }}"
+                                    data-reviewer_1="{{ question[10] }}"
+                                    data-reviewer_2="{{ question[11] }}">
                                     Sửa
                                 </button>
                                 <a href="{{ url_for('ai_delete_question', id=question[0]) }}" class="btn btn-danger" 
@@ -204,6 +209,8 @@
                     <p><strong>Đề tài:</strong> <span id="view-detai"></span></p>
                     <p><strong>Nguồn:</strong> <span id="view-nguon"></span></p>
                     <p><strong>Thời gian:</strong> <span id="view-thoigian"></span></p>
+                    <p>Người kiểm duyệt_1: <span id="view-reviewer_1"></span></p>
+                    <p>Người kiểm duyệt_2: <span id="view-reviewer_2"></span></p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Đóng</button>
@@ -215,8 +222,7 @@
 
 
     <!-- Edit Modal -->
-    <div class="modal fade" id="editModal" tabindex="-1" role="dialog" aria-labelledby="editModalLabel"
-        aria-hidden="true">
+    <div class="modal fade" id="editModal" tabindex="-1" role="dialog" aria-labelledby="editModalLabel" aria-hidden="true">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <form id="edit-form" method="POST">
@@ -250,8 +256,15 @@
                         </div>
                         <div class="form-group">
                             <label for="edit-correct_answer">Đáp Án Đúng:</label>
-                            <input type="text" class="form-control" name="dap_an_dung" id="edit-correct_answer"
-                                required>
+                            <input type="text" class="form-control" name="dap_an_dung" id="edit-correct_answer" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-reviewer_1">Người Kiểm Duyệt_1:</label>
+                            <input type="text" class="form-control" name="Nguoi_kiem_duyet_1" id="edit-reviewer_1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-reviewer_2">Người Kiểm Duyệt_2:</label>
+                            <input type="text" class="form-control" name="Nguoi_kiem_duyet_2" id="edit-reviewer_2" required>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -262,6 +275,7 @@
             </div>
         </div>
     </div>
+    
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -282,8 +296,12 @@
             var correct_answer = button.data('correct_answer');
             var detai = button.data('detai');       // Đề Tài
             var nguon = button.data('nguon');       // Nguồn
-            var link = button.data('link'); 
             var thoigian = button.data('thoigian'); // Thêm thời gian
+            var reviewer_1 = button.data('reviewer_1');  // Người kiểm duyệt
+            var reviewer_2 = button.data('reviewer_2');
+            reviewer_1 = reviewer_1 ? reviewer_1 : "Chưa có";
+            reviewer_2 = reviewer_2 ? reviewer_2 : "Chưa có";
+   
 
             // Cập nhật nội dung của modal với dữ liệu từ button
             var modal = $(this);
@@ -295,8 +313,9 @@
             modal.find('#view-correct_answer').text(correct_answer);
             modal.find('#view-detai').text(detai);
             modal.find('#view-nguon').text(nguon);
-            modal.find('#view-link').text(link).attr("href", link);  // Thêm link
             modal.find('#view-thoigian').text(thoigian);  // Cập nhật thời gian
+            modal.find('#view-reviewer_1').text(reviewer_1);
+            modal.find('#view-reviewer_2').text(reviewer_2);
         });
 
 
@@ -304,21 +323,39 @@
 
         //sửa 
         $('#editModal').on('show.bs.modal', function (event) {
-            var button = $(event.relatedTarget);
-            var id = button.data('id');
-            $('#edit-id').val(id);
-            $('#edit-question').val(button.data('question'));
-            $('#edit-answer_a').val(button.data('answer_a'));
-            $('#edit-answer_b').val(button.data('answer_b'));
-            $('#edit-answer_c').val(button.data('answer_c'));
-            $('#edit-answer_d').val(button.data('answer_d'));
-            $('#edit-correct_answer').val(button.data('correct_answer'));
+        var button = $(event.relatedTarget); // Get the button that triggered the modal
+        var id = button.data('id');
+        var question = button.data('question');
+        var answer_a = button.data('answer_a');
+        var answer_b = button.data('answer_b');
+        var answer_c = button.data('answer_c');
+        var answer_d = button.data('answer_d');
+        var correct_answer = button.data('correct_answer');
+        var reviewer_1 = button.data('reviewer_1');  // Reviewer 1
+        var reviewer_2 = button.data('reviewer_2');  // Reviewer 2
 
-            $('#edit-form').attr('action', `/ai_edit_question/${id}`);
-        });
+        // Fallback values if reviewers are not available
+        reviewer_1 = reviewer_1 ? reviewer_1 : "Chưa có";
+        reviewer_2 = reviewer_2 ? reviewer_2 : "Chưa có";
+        
+        // Populate the modal form fields with the data
+        var modal = $(this);
+        modal.find('#edit-id').val(id);
+        modal.find('#edit-question').val(question);
+        modal.find('#edit-answer_a').val(answer_a);
+        modal.find('#edit-answer_b').val(answer_b);
+        modal.find('#edit-answer_c').val(answer_c);
+        modal.find('#edit-answer_d').val(answer_d);
+        modal.find('#edit-correct_answer').val(correct_answer);
+        modal.find('#edit-reviewer_1').val(reviewer_1); // Populate reviewer_1
+        modal.find('#edit-reviewer_2').val(reviewer_2); // Populate reviewer_2
+        
+        // Update the form action to make the POST request to the correct route
+        modal.find('#edit-form').attr('action', '/ai_edit_question/' + id);
+    });
 
 
-        function collectData() {
+    function collectData() {
     const text = document.getElementById('textAreaId').value.trim();
 
     if (!text) {
@@ -329,10 +366,13 @@
     const selectedOption = document.getElementById('data-source').value;
     const source = selectedOption === 'chatgpt' ? 'ChatGPT' : 'Gemini';
 
-    // Chủ đề (nếu có)
-    const topicRegex = /"([^"]+)"/;
-    const topicMatch = text.match(topicRegex);
-    const topic = topicMatch ? topicMatch[1] : "Chưa xác định";
+    // Tìm câu đầu tiên có chứa dấu ngoặc kép
+    const firstLine = text.split('\n')[0];  // Lấy dòng đầu tiên
+    const topicRegex = /"([^"]+)"/;  // Tìm chuỗi trong dấu ngoặc kép
+    const topicMatch = firstLine.match(topicRegex);
+    const topic = topicMatch ? topicMatch[1] : "Chưa xác định";  // Nếu không tìm thấy, mặc định là "Chưa xác định"
+
+    alert(topic);  // Kiểm tra topic
 
     // Cập nhật regex để khớp với định dạng câu hỏi của bạn
     const questionRegex = /Câu\s*\d+:\s*([\s\S]+?)\nĐáp án đúng:\s*([A-D])/g;
@@ -388,14 +428,15 @@
         .then(response => response.json())
         .then(data => {
             alert(data.message);
+            location.reload();
         })
         .catch(error => {
             console.error("Error:", error);
             alert("Không thể gửi dữ liệu.");
-            alert(data.message);
         });
 }
 
+   
 
         function submitSearch() {
             // Lấy giá trị từ các input
@@ -466,8 +507,9 @@ function updateResults(questions) {
                         data-correct_answer="${question.dap_an_dung}"
                         data-detai="${question.De_tai}" 
                         data-nguon="${question.Nguon}" 
-                        data-link="${question.link}" 
-                        data-thoigian="${question.Thoigian}">
+                        data-thoigian="${question.Thoigian}"
+                        data-reviewer_1="${question.Nguoi_kiem_duyet_1 }" 
+                        data-reviewer_2="${question.Nguoi_kiem_duyet_2 }">
                     Xem
                 </button>
                                   
@@ -479,7 +521,10 @@ function updateResults(questions) {
                         data-answer_b="${question.dap_an_b}" 
                         data-answer_c="${question.dap_an_c}" 
                         data-answer_d="${question.dap_an_d}" 
-                        data-correct_answer="${question.dap_an_dung}">
+                        data-correct_answer="${question.dap_an_dung}"
+                        data-reviewer_1="${question.Nguoi_kiem_duyet_1}" 
+                        data-reviewer_2="${question.Nguoi_kiem_duyet_2}">
+
                     Sửa
                 </button>
                 

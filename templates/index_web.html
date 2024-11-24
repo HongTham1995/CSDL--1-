@@ -124,6 +124,7 @@
     <div class="button-group mt-3">
         <button class="btn btn-secondary" onclick="navigateToPage('page1')"><a href="./app_tc">Dữ liệu thủ công</a></button>
         <button class="btn btn-secondary" onclick="navigateToPage('page2')"><a href="./app_ai">Dữ liệu tạo sinh</a></button>
+        <button class="btn btn-secondary" onclick="navigateToPage('page2')"><a href="./app_all">Tất cả dữ liệu</a></button>
     </div>
     
     <div class="container">
@@ -194,6 +195,7 @@
             </thead>
             <tbody>
                 {% for question in questions %}
+                
                 <tr>
                     <td>{{ question[0] }}</td> <!-- ID của câu hỏi -->
                     <td>{{ question[1] }}</td> <!-- Nội dung câu hỏi -->
@@ -209,12 +211,12 @@
                                 data-detai="{{ question[7] }}" 
                                 data-nguon="{{ question[8] }}" 
                                 data-link="{{ question[9] }}"
-                                data-thoigian="{{ question[10] }}"> <!-- Thêm data-thoigian ở đây -->
+                                data-thoigian="{{ question[10] }}"
+                                data-reviewer="{{ question[11] }}">
+                               
                             Xem
                         </button>
                                   
-                        <!-- Nút sửa câu hỏi -->
-                        <!-- Nút sửa câu hỏi -->
                         <!-- Nút sửa câu hỏi -->
                         <button class="btn btn-warning" data-toggle="modal" data-target="#editModal" 
                                 data-id="{{ question[0] }}" 
@@ -223,13 +225,11 @@
                                 data-answer_b="{{ question[3] }}" 
                                 data-answer_c="{{ question[4] }}" 
                                 data-answer_d="{{ question[5] }}" 
-                                data-correct_answer="{{ question[6] }}" 
-                                data-detai="{{ question[7] }}" 
-                                data-nguon="{{ question[8] }}" 
-                                data-thoigian="{{ question[10] }}">
+                                data-correct_answer="{{ question[6] }}"
+                                data-reviewer="{{ question[11] }}"
+                            >
                             Sửa
                         </button>
-
                         
                         <!-- Nút xóa câu hỏi với xác nhận -->
                         <a href="{{ url_for('web_delete_question', id=question[0]) }}" class="btn btn-danger" 
@@ -243,34 +243,38 @@
         </table>
     </div>
     
+    
 
     
     <!-- Modal Xem Câu Hỏi -->
-<div class="modal fade" id="viewModal" tabindex="-1" role="dialog" aria-labelledby="viewModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="viewModalLabel">Chi Tiết Câu Hỏi</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Đóng">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <p id="view-question"></p>
-                <p>Đáp án A: <span id="view-answer_a"></span></p>
-                <p>Đáp án B: <span id="view-answer_b"></span></p>
-                <p>Đáp án C: <span id="view-answer_c"></span></p>
-                <p>Đáp án D: <span id="view-answer_d"></span></p>
-                <p>Đáp án đúng: <span id="view-correct_answer"></span></p>
-                <hr>
-                <p>Đề Tài: <span id="view-detai"></span></p>
-                <p>Nguồn: <span id="view-nguon"></span></p>
-                <p>Link: <a href="#" id="view-link" target="_blank"></a></p>
-                <p>Thời gian: <span id="view-thoigian"></span></p>  <!-- Thêm thời gian vào đây -->
+    <div class="modal fade" id="viewModal" tabindex="-1" role="dialog" aria-labelledby="viewModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="viewModalLabel">Chi Tiết Câu Hỏi</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Đóng">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p id="view-question"></p>
+                    <p>Đáp án A: <span id="view-answer_a"></span></p>
+                    <p>Đáp án B: <span id="view-answer_b"></span></p>
+                    <p>Đáp án C: <span id="view-answer_c"></span></p>
+                    <p>Đáp án D: <span id="view-answer_d"></span></p>
+                    <p>Đáp án đúng: <span id="view-correct_answer"></span></p>
+                    <hr>
+                    <p>Đề Tài: <span id="view-detai"></span></p>
+                    <p>Nguồn: <span id="view-nguon"></span></p>
+                    <p>Link: <a href="#" id="view-link" target="_blank"></a></p>
+                    <p>Thời gian: <span id="view-thoigian"></span></p>
+                    <p>Người kiểm duyệt: <span id="view-reviewer"></span></p> <!-- Thêm thông tin người kiểm duyệt -->
+                    
+                </div>
             </div>
         </div>
     </div>
-</div>
+    
 
 
     <!-- Edit Modal -->
@@ -310,6 +314,11 @@
                             <label for="edit-correct_answer">Đáp Án Đúng:</label>
                             <input type="text" class="form-control" name="dap_an_dung" id="edit-correct_answer" required>
                         </div>
+                        <div class="form-group">
+                            <label for="edit-reviewer">Người Kiểm Duyệt:</label>
+                            <input type="text" class="form-control" name="nguoi_kiem_duyet" id="edit-reviewer" required>
+                        </div>
+                                           
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Đóng</button>
@@ -319,6 +328,7 @@
             </div>
         </div>
     </div>
+    
 
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -367,47 +377,74 @@
 
         // JavaScript for modal to populate data on view button click
         $('#viewModal').on('show.bs.modal', function (event) {
-            var button = $(event.relatedTarget);  // Lấy button kích hoạt modal
-            var question = button.data('question');
-            var answer_a = button.data('answer_a');
-            var answer_b = button.data('answer_b');
-            var answer_c = button.data('answer_c');
-            var answer_d = button.data('answer_d');
-            var correct_answer = button.data('correct_answer');
-            var detai = button.data('detai');       // Đề Tài
-            var nguon = button.data('nguon');       // Nguồn
-            var link = button.data('link'); 
-            var thoigian = button.data('thoigian'); // Thêm thời gian
+    var button = $(event.relatedTarget); // Lấy button kích hoạt modal
+    var question = button.data('question');
+    var answer_a = button.data('answer_a');
+    var answer_b = button.data('answer_b');
+    var answer_c = button.data('answer_c');
+    var answer_d = button.data('answer_d');
+    var correct_answer = button.data('correct_answer');
+    var detai = button.data('detai');        // Đề tài
+    var nguon = button.data('nguon');        // Nguồn
+    var link = button.data('link');          // Link
+    var thoigian = button.data('thoigian');  // Thời gian
+    var reviewer = button.data('reviewer');  // Người kiểm duyệt
+    
 
-            // Cập nhật nội dung của modal với dữ liệu từ button
-            var modal = $(this);
-            modal.find('#view-question').text(question);
-            modal.find('#view-answer_a').text(answer_a);
-            modal.find('#view-answer_b').text(answer_b);
-            modal.find('#view-answer_c').text(answer_c);
-            modal.find('#view-answer_d').text(answer_d);
-            modal.find('#view-correct_answer').text(correct_answer);
-            modal.find('#view-detai').text(detai);
-            modal.find('#view-nguon').text(nguon);
-            modal.find('#view-link').text(link).attr("href", link);  // Thêm link
-            modal.find('#view-thoigian').text(thoigian);  // Cập nhật thời gian
-        });
+   
+    reviewer = reviewer ? reviewer : "Chưa có";
+   
+
+    // Cập nhật nội dung modal với dữ liệu từ button
+    var modal = $(this);
+    modal.find('#view-question').text(question);
+    modal.find('#view-answer_a').text(answer_a);
+    modal.find('#view-answer_b').text(answer_b);
+    modal.find('#view-answer_c').text(answer_c);
+    modal.find('#view-answer_d').text(answer_d);
+    modal.find('#view-correct_answer').text(correct_answer);
+    modal.find('#view-detai').text(detai);
+    modal.find('#view-nguon').text(nguon);
+    modal.find('#view-link').text(link).attr("href", link); // Hiển thị link có thể nhấp
+    modal.find('#view-thoigian').text(thoigian);           // Cập nhật thời gian
+    modal.find('#view-reviewer').text(reviewer);  // Cập nhật người kiểm duyệt
+   
+             // Cập nhật chất lượng
+});
+
 
 
         //sửa 
         $('#editModal').on('show.bs.modal', function (event) {
-            var button = $(event.relatedTarget);
-            var id = button.data('id');
-            $('#edit-id').val(id);
-            $('#edit-question').val(button.data('question'));
-            $('#edit-answer_a').val(button.data('answer_a'));
-            $('#edit-answer_b').val(button.data('answer_b'));
-            $('#edit-answer_c').val(button.data('answer_c'));
-            $('#edit-answer_d').val(button.data('answer_d'));
-            $('#edit-correct_answer').val(button.data('correct_answer'));
+    var button = $(event.relatedTarget); // Get the button that triggered the modal
+    var id = button.data('id');
+    var question = button.data('question');
+    var answer_a = button.data('answer_a');
+    var answer_b = button.data('answer_b');
+    var answer_c = button.data('answer_c');
+    var answer_d = button.data('answer_d');
+    var correct_answer = button.data('correct_answer');
+    var reviewer = button.data('reviewer');  // Reviewer
+   
 
-            $('#edit-form').attr('action', `/web_edit_question/${id}`);
-        });
+    
+    reviewer = reviewer ? reviewer : "Chưa có";  // Default value
+  
+    // Populate the modal with data
+    var modal = $(this);
+    modal.find('#edit-id').val(id);
+    modal.find('#edit-question').val(question);
+    modal.find('#edit-answer_a').val(answer_a);
+    modal.find('#edit-answer_b').val(answer_b);
+    modal.find('#edit-answer_c').val(answer_c);
+    modal.find('#edit-answer_d').val(answer_d);
+    modal.find('#edit-correct_answer').val(correct_answer);
+    modal.find('#edit-reviewer').val(reviewer); // Populate reviewer
+
+    // Update form action
+    modal.find('#edit-form').attr('action', `/web_edit_question/${id}`);   
+});
+
 
 
         
@@ -462,51 +499,53 @@
     const tableBody = document.getElementById('dataTable').getElementsByTagName('tbody')[0];
     tableBody.innerHTML = ''; // Xóa các dòng cũ
 
-    // Lặp qua danh sách các câu hỏi và thêm vào bảng
-    questions.forEach(question => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${question.ID}</td> <!-- ID của câu hỏi -->
-            <td>${question.cau_hoi}</td> <!-- Nội dung câu hỏi -->
-            <td class="action-buttons">
-                <!-- Nút xem chi tiết câu hỏi -->
-                <button class="btn btn-info" data-toggle="modal" data-target="#viewModal" 
-                        data-question="${question.cau_hoi}" 
-                        data-answer_a="${question.dap_an_a}" 
-                        data-answer_b="${question.dap_an_b}" 
-                        data-answer_c="${question.dap_an_c}" 
-                        data-answer_d="${question.dap_an_d}" 
-                        data-correct_answer="${question.dap_an_dung}"
-                        data-detai="${question.De_tai}" 
-                        data-nguon="${question.Nguon}" 
-                        data-link="${question.link}" 
-                        data-thoigian="${question.Thoigian}">
-                    Xem
-                </button>
-                                  
-                <!-- Nút sửa câu hỏi -->
-                <button class="btn btn-warning" data-toggle="modal" data-target="#editModal" 
-                        data-id="${question.ID}" 
-                        data-question="${question.cau_hoi}" 
-                        data-answer_a="${question.dap_an_a}" 
-                        data-answer_b="${question.dap_an_b}" 
-                        data-answer_c="${question.dap_an_c}" 
-                        data-answer_d="${question.dap_an_d}" 
-                        data-correct_answer="${question.dap_an_dung}">
-                    Sửa
-                </button>
+  // Lặp qua danh sách các câu hỏi và thêm vào bảng
+questions.forEach(question => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+     <td>${question.ID}</td> <!-- ID của câu hỏi -->
+     <td>${question.cau_hoi}</td> <!-- Nội dung câu hỏi -->
+     <td class="action-buttons">
+         <button class="btn btn-info" data-toggle="modal" data-target="#viewModal" 
+                 data-question="${question.cau_hoi}" 
+                 data-answer_a="${question.dap_an_a}" 
+                 data-answer_b="${question.dap_an_b}" 
+                 data-answer_c="${question.dap_an_c}" 
+                 data-answer_d="${question.dap_an_d}" 
+                 data-correct_answer="${question.dap_an_dung}"
+                 data-detai="${question.De_tai}" 
+                 data-nguon="${question.Nguon}" 
+                 data-link="${question.link}" 
+                 data-thoigian="${question.Thoigian}" 
+                 data-reviewer="${question.Nguoi_kiem_duyet}"> 
+               
+             Xem
+         </button>
+         <button class="btn btn-warning" data-toggle="modal" data-target="#editModal" 
+                 data-id="${question.ID}" 
+                 data-question="${question.cau_hoi}" 
+                 data-answer_a="${question.dap_an_a}" 
+                 data-answer_b="${question.dap_an_b}" 
+                 data-answer_c="${question.dap_an_c}" 
+                 data-answer_d="${question.dap_an_d}" 
+                 data-correct_answer="${question.dap_an_dung}" 
+                 data-reviewer="${question.Nguoi_kiem_duyet}" >
                 
-                <!-- Nút xóa câu hỏi với xác nhận -->
-                <a href="/app_web/web_delete_question/${question.ID}" class="btn btn-danger" 
-                    onclick="return confirm('Bạn có chắc chắn muốn xóa câu hỏi này không?');">
-                    Xóa
-                    </a>
+             Sửa
+         </button>
+         <a href="/app_web/web_delete_question/${question.ID}" class="btn btn-danger" 
+             onclick="return confirm('Bạn có chắc chắn muốn xóa câu hỏi này không?');">
+             Xóa
+         </a>
+     </td>
+ `;
 
-            </td>
-        `;
-        tableBody.appendChild(row); // Thêm dòng vào bảng
-    });
+    
+    tableBody.appendChild(row); // Thêm dòng vào bảng
+});
+
 }
+
 
 
 

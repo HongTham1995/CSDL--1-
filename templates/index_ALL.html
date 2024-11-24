@@ -115,7 +115,7 @@
     <div class="button-group mt-3">
         <button class="btn btn-secondary" onclick="navigateToPage('page1')"><a href="./app_web">Dữ liệu web</a></button>
         <button class="btn btn-secondary" onclick="navigateToPage('page2')"><a href="./app_ai">Dữ liệu tạo sinh</a></button>
-        <button class="btn btn-secondary" onclick="navigateToPage('page2')"><a href="./app_all">Tất cả dữ liệu</a></button>
+        <button class="btn btn-secondary" onclick="navigateToPage('page2')"><a href="./app_tc">Dữ liệu tạo sinh</a></button>
     </div>
     
     <div class="container">
@@ -159,10 +159,7 @@
                 <input type="text" class="form-control" id="search-input" name="query" placeholder="Tìm kiếm câu hỏi..." style="width: 500px;" oninput="submitSearch()">
             </div>
 
-            <!-- Add Question Button (Replaces Dropdown) -->
-            <div class="btn-container">
-                <button class="btn btn-success" data-toggle="modal" data-target="#addQuestionModal">Thêm Câu Hỏi</button>
-            </div>
+          
         </div>
 
     <!-- Table container -->
@@ -194,24 +191,8 @@
                                 data-thoigian="{{ question[9] }}"> <!-- Thêm data-thoigian ở đây -->
                             Xem
                         </button>
-                                  
-                        <!-- Nút sửa câu hỏi -->
-                        <button class="btn btn-warning" data-toggle="modal" data-target="#editModal" 
-                                data-id="{{ question[0] }}" 
-                                data-question="{{ question[1] }}" 
-                                data-answer_a="{{ question[2] }}" 
-                                data-answer_b="{{ question[3] }}" 
-                                data-answer_c="{{ question[4] }}" 
-                                data-answer_d="{{ question[5] }}" 
-                                data-correct_answer="{{ question[6] }}">
-                            Sửa
-                        </button>
+                       
                         
-                        <!-- Nút xóa câu hỏi với xác nhận -->
-                        <a href="{{ url_for('tc_delete_question', id=question[0]) }}" class="btn btn-danger" 
-                           onclick="return confirm('Bạn có chắc chắn muốn xóa câu hỏi này không?');">
-                            Xóa
-                        </a>
                     </td>
                 </tr>
                 {% endfor %}
@@ -220,81 +201,7 @@
     </div>
     
 
-       <!-- Modal Thêm Câu Hỏi -->
-       <div class="modal fade" id="addQuestionModal" tabindex="-1" role="dialog" aria-labelledby="addQuestionModalLabel" aria-hidden="true">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="addQuestionModalLabel">Thêm Câu Hỏi Mới</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Đóng">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <form id="add-question-form" method="POST" action="/add_question">
-                        <div id="manual-add" class="add-method">
-                            <!-- Câu hỏi -->
-                            <div class="form-group">
-                                <label for="question">Câu Hỏi:</label>
-                                <input type="text" class="form-control" name="cau_hoi" required>
-                            </div>
-                            <!-- Đáp án A -->
-                            <div class="form-group">
-                                <label for="answer_a">Đáp Án A:</label>
-                                <input type="text" class="form-control" name="dap_an_a" required>
-                            </div>
-                            <!-- Đáp án B -->
-                            <div class="form-group">
-                                <label for="answer_b">Đáp Án B:</label>
-                                <input type="text" class="form-control" name="dap_an_b" required>
-                            </div>
-                            <!-- Đáp án C -->
-                            <div class="form-group">
-                                <label for="answer_c">Đáp Án C:</label>
-                                <input type="text" class="form-control" name="dap_an_c" required>
-                            </div>
-                            <!-- Đáp án D -->
-                            <div class="form-group">
-                                <label for="answer_d">Đáp Án D:</label>
-                                <input type="text" class="form-control" name="dap_an_d" required>
-                            </div>
-                            <!-- Đáp án đúng -->
-                            <div class="form-group">
-                                <label for="correct_answer">Đáp Án Đúng:</label>
-                                <input type="text" class="form-control" name="dap_an_dung" required>
-                            </div>
-                            <!-- Đề tài -->
-                            <div class="form-group">
-                                <label for="topic">Đề Tài:</label>
-                                <input type="text" class="form-control" name="de_tai" required>
-                            </div>
-                            <!-- Nguồn -->
-                            <div class="form-group">
-                                <label for="source">Nguồn:</label>
-                                <input type="text" class="form-control" name="nguon" required>
-                            </div>
-                            <!-- Thời gian -->
-                            <div class="form-group">
-                                <label for="datetime">Thời Gian:</label>
-                                <input type="datetime-local" class="form-control" name="thoi_gian" required>
-                            </div>
-                        </div>
-                        <div id="ai-add" class="add-method" style="display:none;">
-                            <p>Chức năng tạo câu hỏi tự động đang được phát triển.</p>
-                        </div>
-                        <div id="web-add" class="add-method" style="display:none;">
-                            <p>Chức năng thu thập câu hỏi từ trang web đang được phát triển.</p>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Đóng</button>
-                    <button type="submit" class="btn btn-primary" form="add-question-form">Thêm Câu Hỏi</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    
+       
     
     <!-- Modal Xem Câu Hỏi -->
 <div class="modal fade" id="viewModal" tabindex="-1" role="dialog" aria-labelledby="viewModalLabel" aria-hidden="true">
@@ -323,53 +230,7 @@
 </div>
 
 
-    <!-- Edit Modal -->
-    <div class="modal fade" id="editModal" tabindex="-1" role="dialog" aria-labelledby="editModalLabel" aria-hidden="true">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <form id="edit-form" method="POST">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="editModalLabel">Sửa Câu Hỏi</h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Đóng">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
-                    </div>
-                    <div class="modal-body">
-                        <input type="hidden" name="id" id="edit-id">
-                        <div class="form-group">
-                            <label for="edit-question">Câu Hỏi:</label>
-                            <input type="text" class="form-control" name="cau_hoi" id="edit-question" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-answer_a">Đáp Án A:</label>
-                            <input type="text" class="form-control" name="dap_an_a" id="edit-answer_a" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-answer_b">Đáp Án B:</label>
-                            <input type="text" class="form-control" name="dap_an_b" id="edit-answer_b" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-answer_c">Đáp Án C:</label>
-                            <input type="text" class="form-control" name="dap_an_c" id="edit-answer_c" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-answer_d">Đáp Án D:</label>
-                            <input type="text" class="form-control" name="dap_an_d" id="edit-answer_d" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-correct_answer">Đáp Án Đúng:</label>
-                            <input type="text" class="form-control" name="dap_an_dung" id="edit-correct_answer" required>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Đóng</button>
-                        <button type="submit" class="btn btn-primary">Cập Nhật</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
+    
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -405,21 +266,6 @@
             modal.find('#view-thoigian').text(thoigian);  // Cập nhật thời gian
         });
 
-
-        //sửa 
-        $('#editModal').on('show.bs.modal', function (event) {
-            var button = $(event.relatedTarget);
-            var id = button.data('id');
-            $('#edit-id').val(id);
-            $('#edit-question').val(button.data('question'));
-            $('#edit-answer_a').val(button.data('answer_a'));
-            $('#edit-answer_b').val(button.data('answer_b'));
-            $('#edit-answer_c').val(button.data('answer_c'));
-            $('#edit-answer_d').val(button.data('answer_d'));
-            $('#edit-correct_answer').val(button.data('correct_answer'));
-
-            $('#edit-form').attr('action', `/tc_edit_question/${id}`);
-        });
 
 
         
@@ -496,24 +342,7 @@ function updateResults(questions) {
                     Xem
                 </button>
                                   
-                <!-- Nút sửa câu hỏi -->
-                <button class="btn btn-warning" data-toggle="modal" data-target="#editModal" 
-                        data-id="${question.ID}" 
-                        data-question="${question.cau_hoi}" 
-                        data-answer_a="${question.dap_an_a}" 
-                        data-answer_b="${question.dap_an_b}" 
-                        data-answer_c="${question.dap_an_c}" 
-                        data-answer_d="${question.dap_an_d}" 
-                        data-correct_answer="${question.dap_an_dung}">
-                    Sửa
-                </button>
-                
-                <!-- Nút xóa câu hỏi với xác nhận -->
-                 <!-- Nút xóa câu hỏi với xác nhận -->
-                <a href="/app_tc/delete_question/${question.ID}" class="btn btn-danger" 
-   onclick="return confirm('Bạn có chắc chắn muốn xóa câu hỏi này không?');">
-    Xóa
-</a>
+               
 
             </td>
         `;

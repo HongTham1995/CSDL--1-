@@ -46,7 +46,9 @@ def index_web():
                 m.De_tai, 
                 m.Nguon, 
                 m.Link, 
-                m.Thoigian  -- Corrected query
+                m.Thoigian,  -- Corrected query
+                ch.Nguoi_kiem_duyet
+                
             FROM 
                 Cau_hoi AS ch
             JOIN 
@@ -62,9 +64,9 @@ def index_web():
         cursor.close()
         connection.close()
 
-
-
+    
     return render_template('index_web.html', questions=questions)
+
 
 
 # Xóa câu hỏi
@@ -96,27 +98,39 @@ def web_edit_question(id):
     connection = connect_db_web()
     if connection is None:
         flash("Lỗi kết nối cơ sở dữ liệu", "danger")
-        return redirect(url_for('web_index'))
+        return redirect(url_for('index_web'))
 
     cursor = connection.cursor()
     if request.method == 'POST':
+        # Collect form data excluding Thoigian, De_tai, Nguon, and Link
         question_data = {
             'cau_hoi': request.form['cau_hoi'],
             'dap_an_a': request.form['dap_an_a'],
             'dap_an_b': request.form['dap_an_b'],
             'dap_an_c': request.form['dap_an_c'],
             'dap_an_d': request.form['dap_an_d'],
-            'dap_an_dung': request.form['dap_an_dung']
+            'dap_an_dung': request.form['dap_an_dung'],
+            'nguoi_kiem_duyet': request.form['nguoi_kiem_duyet']
+             # Sử dụng đúng tên khóa
         }
 
+        # Ensure no fields are left empty
         if not all(question_data.values()):
             flash("Tất cả các trường đều phải được điền!", "warning")
             return redirect(url_for('web_edit_question', id=id))
 
         try:
+            # Update query for all fields excluding Thoigian, De_tai, Nguon, and Link
             query = """
                 UPDATE Cau_hoi
-                SET cau_hoi = ?, dap_an_a = ?, dap_an_b = ?, dap_an_c = ?, dap_an_d = ?, dap_an_dung = ?
+                SET cau_hoi = ?, 
+                    dap_an_a = ?, 
+                    dap_an_b = ?, 
+                    dap_an_c = ?, 
+                    dap_an_d = ?, 
+                    dap_an_dung = ?, 
+                    nguoi_kiem_duyet = ?
+                   
                 WHERE ID = ?
             """
             values = (*question_data.values(), id)
@@ -146,9 +160,6 @@ def web_edit_question(id):
         connection.close()
 
     return render_template('web_edit_question.html', question=question)
-
-
-
 
 
 
@@ -187,14 +198,16 @@ def web_search_questions():
                 ch.dap_an_dung, 
                 m.De_tai, 
                 m.Nguon, 
-                m.link, 
-                m.Thoigian
+                m.Thoigian,
+                ch.Nguoi_kiem_duyet  -- Check this field
+                
             FROM 
                 Cau_hoi AS ch
             JOIN 
                 Mota AS m 
             ON 
                 ch.maMT = m.maMT
+
             WHERE 
         """
         conditions = []
@@ -437,90 +450,112 @@ def extract_question_data(url):
 
 
 def insert_data(connection, questions, title, nguon, url, timestamp):
-    # Check if there are no questions to insert
+    """
+    Hàm để chèn dữ liệu vào bảng Cau_hoi và Mota trong cơ sở dữ liệu với kiểm tra dữ liệu trùng.
+    """
+
+    # Kiểm tra nếu không có câu hỏi để chèn
     if not questions:
         print("Không có dữ liệu để chèn vào database.")
         return
-    
-    cursor = connection.cursor()
 
-    # SQL command to check if a question already exists
-    check_sql = "SELECT COUNT(*) FROM Cau_hoi WHERE cau_hoi = ?"
-    
-    # SQL command to insert data into the CHTT table
-    insert_sql_chtt = """
-    INSERT INTO Cau_hoi (cau_hoi, dap_an_a, dap_an_b, dap_an_c, dap_an_d, dap_an_dung, maMT) 
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-    """
+    try:
+        cursor = connection.cursor()
 
-    # SQL command to insert metadata into the DLTT table and get the ID
-    insert_sql_dltt = """
-    INSERT INTO Mota (De_tai, Nguon, Link, Thoigian) 
-    OUTPUT INSERTED.MaMT 
-    VALUES (?, ?, ?, ?)
-    """
-    
-    # Count of successfully inserted questions
-    inserted_count = 0
+        # Chuyển đổi thời gian sang định dạng chuẩn SQL Server
+       # Sửa lại định dạng để khớp với chuỗi thời gian đầu vào
+        try:
+            thoi_gian = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
+            formatted_timestamp = thoi_gian.strftime('%Y-%m-%d %H:%M:%S.000')
+        except ValueError as e:
+            print(f"Lỗi chuyển đổi thời gian: {e}")
+            raise Exception("Thời gian không đúng định dạng.")
 
-    print(f"Thu thập được {len(questions)} câu hỏi.")
 
-    # Temporary variable to hold metadata ID (maMT) only if questions are inserted
-    maMT = None
-
-    # Insert each question into the CHTT table
-    for question in questions:
-        # Extract the question from the tuple
-        cau_hoi, dap_an_a, dap_an_b, dap_an_c, dap_an_d, dap_an_dung = question
-        
-        # Kiểm tra xem có trường nào là None không
-        if None in [cau_hoi, dap_an_a, dap_an_b, dap_an_c, dap_an_d, dap_an_dung]:
-            print(f"Câu hỏi không hợp lệ và sẽ không được chèn: {cau_hoi}")
-            continue  # Nếu có trường nào là None thì bỏ qua câu hỏi này
-
-        # Check if the question already exists in the CHTT table
-        cursor.execute(check_sql, (cau_hoi,))
+        # Kiểm tra nếu metadata đã tồn tại trong bảng Mota
+        check_sql = """
+        SELECT MaMT FROM Mota 
+        WHERE De_tai = ? AND Nguon = ? AND Thoigian = ?
+        """
+        cursor.execute(check_sql, (title, nguon, formatted_timestamp))
         result = cursor.fetchone()
 
-        if result[0] == 0:  # If the question does not exist
-            # Insert metadata only once, when the first question is ready for insertion
-            if maMT is None:
-                try:
-                    cursor.execute(insert_sql_dltt, (title, nguon, url, timestamp))
-                    maMT = cursor.fetchone()[0]  # Get the ID of the last inserted row
-                    print("Đã chèn metadata vào bảng MoTa.")
-                except Exception as e:
-                    print(f"Lỗi khi chèn metadata vào MoTa: {e}")
-                    connection.rollback()  # Roll back if metadata insertion fails
-                    cursor.close()
-                    return
+        if result:
+            maMT = result[0]
+            print(f"Metadata đã tồn tại với maMT: {maMT}")
+        else:
+            # Thêm metadata vào bảng Mota
+            insert_sql_dltt = """
+            INSERT INTO Mota (De_tai, Nguon, Link, Thoigian) 
+            VALUES (?, ?, ?, ?)
+            """
+            cursor.execute(insert_sql_dltt, (title, nguon, url, formatted_timestamp))
+            connection.commit()  # Commit giao dịch để đảm bảo dữ liệu được lưu
 
+            # Lấy MaMT của bản ghi vừa thêm
+            select_sql_maMT = """
+            SELECT TOP 1 MaMT FROM Mota 
+            WHERE De_tai = ? AND Nguon = ? AND Thoigian = ?
+            ORDER BY MaMT DESC
+            """
+            cursor.execute(select_sql_maMT, (title, nguon, formatted_timestamp))
+            maMT_result = cursor.fetchone()
+
+            if not maMT_result or maMT_result[0] is None:
+                raise Exception("Không thể lấy giá trị MaMT mới.")
+            maMT = int(maMT_result[0])
+            print(f"Đã tạo metadata mới với maMT: {maMT}")
+
+        # Duyệt qua từng câu hỏi để chèn vào bảng Cau_hoi
+        insert_sql_cau_hoi = """
+        INSERT INTO Cau_hoi (cau_hoi, dap_an_a, dap_an_b, dap_an_c, dap_an_d, dap_an_dung, Nguoi_kiem_duyet, maMT) 
+        VALUES (?, ?, ?, ?, ?, ?, null, ?)
+        """
+
+        inserted_count = 0
+        for question in questions:
             try:
-                # Insert the question into the CHTT table with the corresponding maMT
-                cursor.execute(insert_sql_chtt, question + (maMT,))  # Add maMT to the question parameters
+                cau_hoi, dap_an_a, dap_an_b, dap_an_c, dap_an_d, dap_an_dung = question
+
+                # Kiểm tra các trường hợp null hoặc dữ liệu không hợp lệ
+                if None in [cau_hoi, dap_an_a, dap_an_b, dap_an_c, dap_an_d, dap_an_dung]:
+                    print(f"Câu hỏi không hợp lệ và bị bỏ qua: {question}")
+                    continue
+
+                # Chèn câu hỏi vào bảng Cau_hoi
+                cursor.execute(insert_sql_cau_hoi, (cau_hoi, dap_an_a, dap_an_b, dap_an_c, dap_an_d, dap_an_dung, maMT))
                 inserted_count += 1
                 print(f"Đã chèn câu hỏi: {cau_hoi}")
+
             except Exception as e:
-                print(f"Lỗi khi chèn câu hỏi {cau_hoi}: {e}")
+                print(f"Lỗi khi chèn câu hỏi {question[0]}: {e}")
+
+        # Commit tất cả thay đổi nếu có ít nhất một câu hỏi được chèn
+        if inserted_count > 0:
+            connection.commit()
+            print(f"Đã chèn {inserted_count}/{len(questions)} câu hỏi vào bảng Cau_hoi.")
         else:
-            print(f"Câu hỏi đã tồn tại: {cau_hoi}")
+            print("Không có câu hỏi nào được chèn vào database.")
 
-    # Commit all changes to the database if any questions were inserted
-    if inserted_count > 0:
-        connection.commit()
-        print(f"Đã chèn {inserted_count} câu hỏi mới vào bảng CHTT.")
-    else:
-        print("Không có câu hỏi nào được chèn. Metadata sẽ không được lưu.")
+    except Exception as e:
+        print(f"Lỗi trong quá trình xử lý: {e}")
+        connection.rollback()  # Rollback nếu xảy ra lỗi
+    finally:
+        if cursor:
+            cursor.close()
+        connection.close()
 
-    # Close the cursor
-    cursor.close()
+
+
+
+
 
 # Chỉ định duy nhất một endpoint '/fetch_questions'
 @app.route('/fetch_questions', methods=['POST'])
 def fetch_questions():
     try:
         data = request.get_json()  # Lấy dữ liệu JSON từ frontend
-        print(f"Received data: {data}")  # In dữ liệu ra console để kiểm tra
+        #print(f"Received data: {data}")  # In dữ liệu ra console để kiểm tra
         url = data.get('url')  # Lấy URL từ dữ liệu
 
         if not url:
@@ -539,9 +574,7 @@ def fetch_questions():
             # Nếu không có từ nào trong URL, có thể xử lý tình huống này (ví dụ: mặc định hoặc thông báo lỗi)
             questions, title, timestamp = None, None, None
 
-        print(f"Extracted data: {questions}, {title}, {timestamp}")
-
-        
+        #print(f"Extracted data: {questions}, {title}, {timestamp}")
         
         if questions:
             return jsonify({
@@ -600,7 +633,9 @@ def index_ai():
                 ch.dap_an_dung, 
                 m.De_tai, 
                 m.Nguon, 
-                m.Thoigian  -- Corrected query
+                m.Thoigian,
+                ch.Nguoi_kiem_duyet_1,
+                ch.Nguoi_kiem_duyet_2
             FROM 
                 Cau_hoi AS ch
             JOIN 
@@ -615,14 +650,14 @@ def index_ai():
     finally:
         cursor.close()
         connection.close()
-
+    
     return render_template('index_AI.html', questions=questions)
 
 
 # Xóa câu hỏi
 @app.route('/app_ai/ai_delete_question/<int:id>')
 def ai_delete_question(id):
-    connection = tc_connect_db()
+    connection = connect_db_ai()
     if connection is None:
         flash("Lỗi kết nối cơ sở dữ liệu", "danger")
         return redirect(url_for('index_ai'))
@@ -659,7 +694,9 @@ def ai_edit_question(id):
             'dap_an_b': request.form['dap_an_b'],
             'dap_an_c': request.form['dap_an_c'],
             'dap_an_d': request.form['dap_an_d'],
-            'dap_an_dung': request.form['dap_an_dung']
+            'dap_an_dung': request.form['dap_an_dung'],
+            'Nguoi_kiem_duyet_1': request.form['Nguoi_kiem_duyet_1'],
+            'Nguoi_kiem_duyet_2': request.form['Nguoi_kiem_duyet_2']
         }
 
         if not all(question_data.values()):
@@ -669,7 +706,7 @@ def ai_edit_question(id):
         try:
             query = """
                 UPDATE Cau_hoi
-                SET cau_hoi = ?, dap_an_a = ?, dap_an_b = ?, dap_an_c = ?, dap_an_d = ?, dap_an_dung = ?
+                SET cau_hoi = ?, dap_an_a = ?, dap_an_b = ?, dap_an_c = ?, dap_an_d = ?, dap_an_dung = ?,Nguoi_kiem_duyet_1=?,Nguoi_kiem_duyet_2=?
                 WHERE ID = ?
             """
             values = (*question_data.values(), id)
@@ -738,7 +775,9 @@ def ai_search_questions():
                 ch.dap_an_dung, 
                 m.De_tai, 
                 m.Nguon, 
-                m.Thoigian
+                m.Thoigian,
+                ch.Nguoi_kiem_duyet_1,
+                ch.Nguoi_kiem_duyet_2
             FROM 
                 Cau_hoi AS ch
             JOIN 
@@ -788,7 +827,6 @@ def ai_search_questions():
 
 
 
-
 def ai_insert_data(questions, title, nguon, timestamp):
     # Connect to the database
     connection = connect_db_ai()
@@ -796,23 +834,13 @@ def ai_insert_data(questions, title, nguon, timestamp):
     # Check if there are no questions to insert
     if not questions:
         print("Không có dữ liệu để chèn vào database.")
-        return
+        return 0  # Return 0 if no questions
 
     cursor = connection.cursor()
 
-    # SQL command to check if a question already exists
-    check_sql = "SELECT COUNT(*) FROM Cau_hoi WHERE cau_hoi = ?"
-    
-    # SQL command to insert data into the CHTT table
-    insert_sql_chtt = """
-    INSERT INTO Cau_hoi (cau_hoi, dap_an_a, dap_an_b, dap_an_c, dap_an_d, dap_an_dung, maMT) 
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-    """
-
-    # SQL command to insert metadata into the Mota table and get the ID
+    # SQL command to insert metadata into the Mota table
     insert_sql_dltt = """
     INSERT INTO Mota (De_tai, Nguon, Thoigian) 
-    OUTPUT INSERTED.MaMT 
     VALUES (?, ?, ?)
     """
     
@@ -821,10 +849,24 @@ def ai_insert_data(questions, title, nguon, timestamp):
 
     print(f"Thu thập được {len(questions)} câu hỏi.")
 
-    # Temporary variable to hold metadata ID (maMT) only if questions are inserted
-    maMT = None
+    # Insert metadata into Mota table
+    try:
+        cursor.execute(insert_sql_dltt, (title, nguon, timestamp))
+        connection.commit()
+        print(f"Đã chèn metadata vào bảng Mota.")
+    except Exception as e:
+        print(f"Lỗi khi chèn metadata vào Mota: {e}")
+        connection.rollback()  # Roll back if metadata insertion fails
+        cursor.close()
+        return 0  # Return 0 if metadata insert fails
 
-    # Insert each question into the CHTT table
+    # SQL command to insert data into the Cau_hoi table
+    insert_sql_chtt = """
+    INSERT INTO Cau_hoi (cau_hoi, dap_an_a, dap_an_b, dap_an_c, dap_an_d, dap_an_dung, Nguoi_kiem_duyet_1, Nguoi_kiem_duyet_2, maMT) 
+    VALUES (?, ?, ?, ?, ?, ?, null, null, null)
+    """
+    
+    # Insert each question into the Cau_hoi table
     for question in questions:
         # Extract the fields from the question dictionary
         cau_hoi = question.get('cauhoi')
@@ -834,57 +876,39 @@ def ai_insert_data(questions, title, nguon, timestamp):
         dap_an_d = question.get('answer_d')
         dap_an_dung = question.get('dapandung')
 
-        # Print the question for debugging
-        print(question)
-
         # Check if any field is None
         missing_fields = [key for key, value in question.items() if value is None]
         if missing_fields:
             print(f"Câu hỏi không hợp lệ và sẽ không được chèn: {cau_hoi}. Các trường thiếu: {', '.join(missing_fields)}")
             continue  # Skip this question if any field is None
 
-        # Check if the question already exists in the CHTT table
-        cursor.execute(check_sql, (cau_hoi,))
-        result = cursor.fetchone()
-
-        if result[0] == 0:  # If the question does not exist
-            # Insert metadata only once, when the first question is ready for insertion
-            if maMT is None:
-                try:
-                    cursor.execute(insert_sql_dltt, (title, nguon, timestamp))
-                    maMT = cursor.fetchone()[0]  # Get the ID of the last inserted row
-                    print("Đã chèn metadata vào bảng MoTa.")
-                except Exception as e:
-                    print(f"Lỗi khi chèn metadata vào MoTa: {e}")
-                    connection.rollback()  # Roll back if metadata insertion fails
-                    cursor.close()
-                    return
-
-            try:
-                # Insert the question into the CHTT table with the corresponding maMT
-                cursor.execute(insert_sql_chtt, (cau_hoi, dap_an_a, dap_an_b, dap_an_c, dap_an_d, dap_an_dung, maMT))
-                inserted_count += 1
-                print(f"Đã chèn câu hỏi: {cau_hoi}")
-            except Exception as e:
-                print(f"Lỗi khi chèn câu hỏi {cau_hoi}: {e}")
-                connection.rollback()  # Roll back if any question insertion fails
-                cursor.close()
-                return
-        else:
-            print(f"Câu hỏi đã tồn tại: {cau_hoi}")
-
+        try:
+            # Insert the question into the Cau_hoi table with NULL for maMT
+            cursor.execute(insert_sql_chtt, (cau_hoi, dap_an_a, dap_an_b, dap_an_c, dap_an_d, dap_an_dung))
+            inserted_count += 1
+            print(f"Đã chèn câu hỏi: {cau_hoi}")
+        except Exception as e:
+            print(f"Lỗi khi chèn câu hỏi {cau_hoi}: {e}")
+            connection.rollback()  # Roll back if any question insertion fails
+            cursor.close()
+            return 0  # Return 0 if question insert fails
+    
     # Commit all changes to the database if any questions were inserted
     if inserted_count > 0:
         connection.commit()
-        print(f"Đã chèn {inserted_count} câu hỏi mới vào bảng CHTT.")
+        print(f"Đã chèn {inserted_count} câu hỏi mới vào bảng Cau_hoi.")
+        return inserted_count  # Return the count of inserted questions
     else:
-        print("Không có câu hỏi nào được chèn. Metadata sẽ không được lưu.")
+        print("Không có câu hỏi nào được chèn.")
+        return 0  # Return 0 if no questions were inserted
 
     # Close the cursor
     cursor.close()
 
 
-# Flask endpoint to handle data insertion
+
+
+
 @app.route('/ai_insert_data_endpoint', methods=['POST'])
 def ai_insert_data_endpoint():
     data = request.get_json()
@@ -897,18 +921,28 @@ def ai_insert_data_endpoint():
         return jsonify({"status": "failure", "message": "No questions to insert."})
 
     try:
-        ai_insert_data(questions, title, nguon, timestamp)
-        return jsonify({"status": "success", "message": "Data inserted successfully!"})
-    except Exception as e:
-        print("Error:", e)
-        return jsonify({"status": "failure", "message": "Data insertion failed."})
-    
+        # Call ai_insert_data to perform the insert
+        inserted_count = ai_insert_data(questions, title, nguon, timestamp)
 
+        if inserted_count > 0:
+            # Return a success response with a message and flag to indicate redirection
+            return jsonify({
+                "status": "success", 
+                "message": f"Dữ liệu đã được chèn thành công, {inserted_count} câu hỏi.",
+                "redirect": True  # This indicates that the frontend should redirect
+            })
+        else:
+            return jsonify({"status": "failure", "message": "Không có câu hỏi nào được chèn."})
+
+    except Exception as e:
+        print("Error:", e)  # Log the error
+        return jsonify({"status": "failure", "message": f"Data insertion failed: {str(e)}"})
+    
+    
+    
 @app.route('/app_ai')
 def app_ai():
-    return render_template('index_AI.html')  
-
-
+    return render_template('index_AI.html')
 
 
 # Hàm kết nối với SQL Server
@@ -974,68 +1008,78 @@ def tc_index():
 # Thêm câu hỏi
 @app.route('/add_question', methods=['POST'])
 def tc_add_question():
-    # Get the data from the form
     question_data = {
-        'cau_hoi': request.form['cau_hoi'],
-        'dap_an_a': request.form['dap_an_a'],
-        'dap_an_b': request.form['dap_an_b'],
-        'dap_an_c': request.form['dap_an_c'],
-        'dap_an_d': request.form['dap_an_d'],
-        'dap_an_dung': request.form['dap_an_dung'],
-        'de_tai': request.form['de_tai'],  # New field for Topic
-        'nguon': request.form['nguon'],  # New field for Source
-        'thoi_gian': request.form['thoi_gian']  # New field for Time
+        'cau_hoi': request.form.get('cau_hoi'),
+        'dap_an_a': request.form.get('dap_an_a'),
+        'dap_an_b': request.form.get('dap_an_b'),
+        'dap_an_c': request.form.get('dap_an_c'),
+        'dap_an_d': request.form.get('dap_an_d'),
+        'dap_an_dung': request.form.get('dap_an_dung'),
+        'de_tai': request.form.get('de_tai'),
+        'nguon': request.form.get('nguon'),
+        'thoi_gian': request.form.get('thoi_gian')
     }
 
     print("Received data:", question_data)
 
-    # Convert 'thoi_gian' to the correct datetime format if necessary
+    # Kiểm tra dữ liệu đầu vào
+    if not all(question_data.values()):
+        flash("Vui lòng nhập đầy đủ thông tin.", "danger")
+        return redirect(url_for('tc_index'))
+
+    # Chuyển đổi thời gian
     try:
-        # Database expects format 'YYYY-MM-DD HH:MM:SS.000'
         thoi_gian = datetime.strptime(question_data['thoi_gian'], '%Y-%m-%dT%H:%M')
         question_data['thoi_gian'] = thoi_gian.strftime('%Y-%m-%d %H:%M:%S.000')
-    except Exception as e:
-        print(f"Error converting time: {e}")
-        flash("Lỗi chuyển đổi thời gian", "danger")
+    except ValueError as e:
+        print(f"Lỗi chuyển đổi thời gian: {e}")
+        flash("Lỗi chuyển đổi thời gian, vui lòng nhập đúng định dạng.", "danger")
         return redirect(url_for('tc_index'))
 
-    # Connect to the database
+    # Kết nối cơ sở dữ liệu
     connection = tc_connect_db()
     if connection is None:
-        flash("Lỗi kết nối cơ sở dữ liệu", "danger")
+        flash("Lỗi kết nối cơ sở dữ liệu.", "danger")
         return redirect(url_for('tc_index'))
 
-    cursor = connection.cursor()
-    
     try:
-        # Check if the question already exists
-        check_sql = "SELECT COUNT(*) FROM Cau_hoi WHERE cau_hoi = ?"
-        cursor.execute(check_sql, (question_data['cau_hoi'],))
-        result = cursor.fetchone()
-        print(f"Question count: {result[0]}")
-        
-        if result[0] > 0:
-            flash("Câu hỏi đã tồn tại trong cơ sở dữ liệu", "warning")
-            return redirect(url_for('tc_index'))
+        cursor = connection.cursor()
 
-        # Insert metadata into Mota table
-        insert_sql_dltt = """
-        INSERT INTO Mota (De_tai, Nguon, Thoigian) 
-        OUTPUT INSERTED.MaMT 
-        VALUES (?, ?, ?)
+        # Kiểm tra nếu thông tin đã tồn tại trong bảng Mota
+        check_sql = """
+        SELECT MaMT FROM Mota 
+        WHERE De_tai = ? AND Nguon = ? AND Thoigian = ?
         """
-        cursor.execute(insert_sql_dltt, (question_data['de_tai'], question_data['nguon'], question_data['thoi_gian']))
-        maMT = cursor.fetchone()
-        
-        if not maMT:
-            print("Không thể lấy MaMT.")
-            flash("Lỗi khi thêm dữ liệu mô tả", "danger")
-            return redirect(url_for('tc_index'))
+        cursor.execute(check_sql, (question_data['de_tai'], question_data['nguon'], question_data['thoi_gian']))
+        result = cursor.fetchone()
 
-        maMT = maMT[0]  # Get the generated MaMT (metadata ID)
-        print("MaMT:", maMT)
+        if result:
+            maMT = result[0]
+            print("Existing MaMT found:", maMT)
+        else:
+            # Thêm thông tin vào bảng Mota
+            insert_sql_dltt = """
+            INSERT INTO Mota (De_tai, Nguon, Thoigian) 
+            VALUES (?, ?, ?)
+            """
+            cursor.execute(insert_sql_dltt, (question_data['de_tai'], question_data['nguon'], question_data['thoi_gian']))
+            connection.commit()  # Xác nhận giao dịch trước khi truy vấn lại
 
-        # Insert question into Cau_hoi table
+            # Lấy MaMT của bản ghi vừa thêm
+            select_sql_maMT = """
+            SELECT TOP 1 MaMT FROM Mota 
+            WHERE De_tai = ? AND Nguon = ? AND Thoigian = ?
+            ORDER BY MaMT DESC
+            """
+            cursor.execute(select_sql_maMT, (question_data['de_tai'], question_data['nguon'], question_data['thoi_gian']))
+            maMT_result = cursor.fetchone()
+
+            if not maMT_result or maMT_result[0] is None:
+                raise Exception("Không thể lấy giá trị MaMT mới.")
+            maMT = int(maMT_result[0])
+            print("New MaMT created:", maMT)
+
+        # Thêm câu hỏi vào bảng Cau_hoi
         insert_sql_cau_hoi = """
         INSERT INTO Cau_hoi (cau_hoi, dap_an_a, dap_an_b, dap_an_c, dap_an_d, dap_an_dung, maMT) 
         VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -1044,22 +1088,26 @@ def tc_add_question():
             question_data['cau_hoi'], question_data['dap_an_a'], question_data['dap_an_b'],
             question_data['dap_an_c'], question_data['dap_an_d'], question_data['dap_an_dung'], maMT
         )
-        
-        cursor.execute(insert_sql_cau_hoi, values_cau_hoi)
-        print("Question inserted:", values_cau_hoi)
 
-        # Commit the transaction
+        cursor.execute(insert_sql_cau_hoi, values_cau_hoi)
         connection.commit()
-        print("Commit successful.")
-        flash("Thêm câu hỏi thành công", "success")
+        print("Question inserted successfully:", values_cau_hoi)
+        flash("Thêm câu hỏi thành công.", "success")
+
     except Exception as e:
-        print(f"Lỗi khi thêm câu hỏi: {e}")  # Print out the error
+        print(f"Lỗi khi thêm câu hỏi: {e}")
         flash(f"Lỗi khi thêm câu hỏi: {e}", "danger")
+        connection.rollback()  # Hủy giao dịch nếu xảy ra lỗi
     finally:
-        cursor.close()
+        if cursor:
+            cursor.close()
         connection.close()
 
     return redirect(url_for('tc_index'))
+
+
+
+
 
 # Xóa câu hỏi
 @app.route('/app_tc/delete_question/<int:id>')
@@ -1224,10 +1272,12 @@ def tc_search_questions():
 
 
 
-
-
-@app.route('/app_thucong')
+@app.route('/app_tc')
 def app_tc():
     return render_template('index_thucong.html')
+
+@app.route('/app_all')
+def app_all():
+    return render_template('index_ALL.html') 
 if __name__ == '__main__':
     app.run(debug=True, port=8080)
