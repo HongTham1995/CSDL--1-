@@ -180,15 +180,13 @@
                     <td class="action-buttons">
                         <!-- Nút xem chi tiết câu hỏi -->
                         <button class="btn btn-info" data-toggle="modal" data-target="#viewModal" 
-                                data-question="{{ question[1] }}" 
-                                data-answer_a="{{ question[2] }}" 
-                                data-answer_b="{{ question[3] }}" 
-                                data-answer_c="{{ question[4] }}" 
-                                data-answer_d="{{ question[5] }}" 
-                                data-correct_answer="{{ question[6] }}"
-                                data-detai="{{ question[7] }}" 
-                                data-nguon="{{ question[8] }}" 
-                                data-thoigian="{{ question[9] }}"> <!-- Thêm data-thoigian ở đây -->
+                                data-question="{{ question[1] }}" data-answer_a="{{ question[2] }}"
+                                data-answer_b="{{ question[3] }}" data-answer_c="{{ question[4] }}"
+                                data-answer_d="{{ question[5] }}" data-correct_answer="{{ question[6] }} "
+                                data-detai="{{ question[7] }}" data-nguon="{{ question[8] }}"
+                                data-thoigian="{{ question[9] }}"
+                                data-reviewer_1="{{ question[10] }}"
+                                data-reviewer_2="{{ question[11] }}">
                             Xem
                         </button>
                        
@@ -204,31 +202,35 @@
        
     
     <!-- Modal Xem Câu Hỏi -->
-<div class="modal fade" id="viewModal" tabindex="-1" role="dialog" aria-labelledby="viewModalLabel" aria-hidden="true">
+    <div class="modal fade" id="viewModal" tabindex="-1" role="dialog" aria-labelledby="viewModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="viewModalLabel">Chi Tiết Câu Hỏi</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Đóng">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
             <div class="modal-body">
-                <p id="view-question"></p>
-                <p>Đáp án A: <span id="view-answer_a"></span></p>
-                <p>Đáp án B: <span id="view-answer_b"></span></p>
-                <p>Đáp án C: <span id="view-answer_c"></span></p>
-                <p>Đáp án D: <span id="view-answer_d"></span></p>
-                <p>Đáp án đúng: <span id="view-correct_answer"></span></p>
-                <hr>
-                <p>Đề Tài: <span id="view-detai"></span></p>
-                <p>Nguồn: <span id="view-nguon"></span></p>
-                <p>Thời gian: <span id="view-thoigian"></span></p>  <!-- Thêm thời gian vào đây -->
+                <p><strong>Câu hỏi:</strong> <span id="view-question"></span></p>
+                <p><strong>Đáp án A:</strong> <span id="view-answer_a"></span></p>
+                <p><strong>Đáp án B:</strong> <span id="view-answer_b"></span></p>
+                <p><strong>Đáp án C:</strong> <span id="view-answer_c"></span></p>
+                <p><strong>Đáp án D:</strong> <span id="view-answer_d"></span></p>
+                <p><strong>Đáp án đúng:</strong> <span id="view-correct_answer"></span></p>
+                <p><strong>Đề tài:</strong> <span id="view-detai"></span></p>
+                <p><strong>Nguồn:</strong> <span id="view-nguon"></span></p>
+                <p><strong>Thời gian:</strong> <span id="view-thoigian"></span></p>
+                <p>Người kiểm duyệt_1: <span id="view-reviewer_1"></span></p>
+                <p>Người kiểm duyệt_2: <span id="view-reviewer_2"></span></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Đóng</button>
             </div>
         </div>
     </div>
 </div>
-
 
     
 
@@ -252,6 +254,11 @@
             var detai = button.data('detai');       // Đề Tài
             var nguon = button.data('nguon');       // Nguồn
             var thoigian = button.data('thoigian'); // Thêm thời gian
+            var reviewer_1 = button.data('reviewer_1');  // Người kiểm duyệt
+            var reviewer_2 = button.data('reviewer_2');
+            reviewer_1 = reviewer_1 ? reviewer_1 : "Chưa có";
+            reviewer_2 = reviewer_2 ? reviewer_2 : "Chưa có";
+   
 
             // Cập nhật nội dung của modal với dữ liệu từ button
             var modal = $(this);
@@ -264,7 +271,10 @@
             modal.find('#view-detai').text(detai);
             modal.find('#view-nguon').text(nguon);
             modal.find('#view-thoigian').text(thoigian);  // Cập nhật thời gian
+            modal.find('#view-reviewer_1').text(reviewer_1);
+            modal.find('#view-reviewer_2').text(reviewer_2);
         });
+
 
 
 

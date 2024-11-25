@@ -1295,8 +1295,68 @@ def tc_search_questions():
 def app_tc():
     return render_template('index_thucong.html')
 
+
+def connect_db_all():
+    try:
+        conn = pyodbc.connect(
+            'DRIVER={SQL Server};'
+            'SERVER=127.0.0.1;'    
+            'DATABASE=CSDLNC;'      
+            'UID=sa;'               
+            'PWD=123456;'           
+        )
+        print("Kết nối tới SQL Server thành công.")
+        return conn
+    except pyodbc.Error as e:
+        print("Lỗi kết nối tới SQL Server:", e)
+        return None
+
+# Trang chủ: hiển thị tất cả câu hỏi
+@app.route('/app_all')
+def index_all():
+    connection = connect_db_all()
+    if connection is None:
+        flash("Lỗi kết nối cơ sở dữ liệu", "danger")
+        return render_template('index_ALL.html', questions=[])
+
+    cursor = connection.cursor()
+    try:
+        # Sử dụng JOIN để lấy thông tin từ cả hai bảng Cau_hoi và Mota
+        cursor.execute("""
+            SELECT 
+                ch.ID, 
+                ch.cau_hoi, 
+                ch.dap_an_a, 
+                ch.dap_an_b, 
+                ch.dap_an_c, 
+                ch.dap_an_d, 
+                ch.dap_an_dung, 
+                m.De_tai, 
+                m.Nguon, 
+                m.Thoigian,
+                ch.Nguoi_kiem_duyet_1,
+                ch.Nguoi_kiem_duyet_2
+            FROM 
+                Cau_hoi AS ch
+            JOIN 
+                Mota AS m 
+            ON 
+                ch.maMT = m.maMT
+        """)
+        questions = cursor.fetchall()
+    except Exception as e:
+        flash(f"Lỗi khi truy vấn cơ sở dữ liệu: {e}", "danger")
+        questions = []
+    finally:
+        cursor.close()
+        connection.close()
+    print(questions)
+    return render_template('index_ALL.html', questions=questions)
+
 @app.route('/app_all')
 def app_all():
     return render_template('index_ALL.html') 
+
+
 if __name__ == '__main__':
     app.run(debug=True, port=8080)
