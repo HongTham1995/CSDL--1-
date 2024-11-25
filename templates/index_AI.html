@@ -411,6 +411,7 @@
         alert("Không tìm thấy câu hỏi hợp lệ trong văn bản.");
         return;
     }
+    
 
     // Gửi câu hỏi tới server
     fetch('/ai_insert_data_endpoint', {
@@ -422,7 +423,7 @@
             topic: topic,
             source: source,
             questions: questions,
-            timestamp: new Date().toISOString()
+          
         })
     })
         .then(response => response.json())

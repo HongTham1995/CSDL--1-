@@ -831,80 +831,99 @@ def ai_insert_data(questions, title, nguon, timestamp):
     # Connect to the database
     connection = connect_db_ai()
 
-    # Check if there are no questions to insert
+    # Kiểm tra nếu không có câu hỏi để chèn
     if not questions:
         print("Không có dữ liệu để chèn vào database.")
         return 0  # Return 0 if no questions
 
     cursor = connection.cursor()
 
-    # SQL command to insert metadata into the Mota table
-    insert_sql_dltt = """
-    INSERT INTO Mota (De_tai, Nguon, Thoigian) 
-    VALUES (?, ?, ?)
-    """
-    
-    # Count of successfully inserted questions
-    inserted_count = 0
-
-    print(f"Thu thập được {len(questions)} câu hỏi.")
-
-    # Insert metadata into Mota table
+    # Chuyển đổi thời gian sang định dạng chuẩn SQL Server
     try:
-        cursor.execute(insert_sql_dltt, (title, nguon, timestamp))
-        connection.commit()
-        print(f"Đã chèn metadata vào bảng Mota.")
-    except Exception as e:
-        print(f"Lỗi khi chèn metadata vào Mota: {e}")
-        connection.rollback()  # Roll back if metadata insertion fails
-        cursor.close()
-        return 0  # Return 0 if metadata insert fails
+        thoi_gian = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
+        formatted_timestamp = thoi_gian.strftime('%Y-%m-%d %H:%M:%S.000')
+    except ValueError as e:
+        print(f"Lỗi chuyển đổi thời gian: {e}")
+        return 0  # Return 0 if timestamp format is invalid
 
-    # SQL command to insert data into the Cau_hoi table
-    insert_sql_chtt = """
-    INSERT INTO Cau_hoi (cau_hoi, dap_an_a, dap_an_b, dap_an_c, dap_an_d, dap_an_dung, Nguoi_kiem_duyet_1, Nguoi_kiem_duyet_2, maMT) 
-    VALUES (?, ?, ?, ?, ?, ?, null, null, null)
+    # Kiểm tra nếu metadata đã tồn tại trong bảng Mota
+    check_sql = """
+    SELECT MaMT FROM Mota 
+    WHERE De_tai = ? AND Nguon = ? AND Thoigian = ?
     """
-    
-    # Insert each question into the Cau_hoi table
+    cursor.execute(check_sql, (title, nguon, formatted_timestamp))
+    result = cursor.fetchone()
+
+    if result:
+        maMT = result[0]
+        print(f"Metadata đã tồn tại với maMT: {maMT}")
+    else:
+        # Thêm metadata vào bảng Mota
+        insert_sql_dltt = """
+        INSERT INTO Mota (De_tai, Nguon, Thoigian) 
+        VALUES (?, ?, ?)
+        """
+        cursor.execute(insert_sql_dltt, (title, nguon, formatted_timestamp))
+        connection.commit()  # Commit giao dịch để đảm bảo dữ liệu được lưu
+
+        # Lấy MaMT của bản ghi vừa thêm
+        select_sql_maMT = """
+        SELECT TOP 1 MaMT FROM Mota 
+        WHERE De_tai = ? AND Nguon = ? AND Thoigian = ?
+        ORDER BY MaMT DESC
+        """
+        cursor.execute(select_sql_maMT, (title, nguon, formatted_timestamp))
+        maMT_result = cursor.fetchone()
+
+        if not maMT_result or maMT_result[0] is None:
+            print("Lỗi: Không thể lấy giá trị MaMT mới.")
+            connection.rollback()  # Rollback nếu có lỗi
+            cursor.close()
+            return 0  # Return 0 if metadata insert fails
+        maMT = maMT_result[0]
+        print(f"Đã tạo metadata mới với maMT: {maMT}")
+
+    # Duyệt qua từng câu hỏi để chèn vào bảng Cau_hoi
+    insert_sql_cau_hoi = """
+    INSERT INTO Cau_hoi (cau_hoi, dap_an_a, dap_an_b, dap_an_c, dap_an_d, dap_an_dung, Nguoi_kiem_duyet_1, Nguoi_kiem_duyet_2, maMT) 
+    VALUES (?, ?, ?, ?, ?, ?, null, null, ?)
+    """
+
+    inserted_count = 0
     for question in questions:
-        # Extract the fields from the question dictionary
-        cau_hoi = question.get('cauhoi')
-        dap_an_a = question.get('answer_a')
-        dap_an_b = question.get('answer_b')
-        dap_an_c = question.get('answer_c')
-        dap_an_d = question.get('answer_d')
-        dap_an_dung = question.get('dapandung')
-
-        # Check if any field is None
-        missing_fields = [key for key, value in question.items() if value is None]
-        if missing_fields:
-            print(f"Câu hỏi không hợp lệ và sẽ không được chèn: {cau_hoi}. Các trường thiếu: {', '.join(missing_fields)}")
-            continue  # Skip this question if any field is None
-
         try:
-            # Insert the question into the Cau_hoi table with NULL for maMT
-            cursor.execute(insert_sql_chtt, (cau_hoi, dap_an_a, dap_an_b, dap_an_c, dap_an_d, dap_an_dung))
+            cau_hoi = question.get('cauhoi')
+            dap_an_a = question.get('answer_a')
+            dap_an_b = question.get('answer_b')
+            dap_an_c = question.get('answer_c')
+            dap_an_d = question.get('answer_d')
+            dap_an_dung = question.get('dapandung')
+
+            # Kiểm tra các trường hợp null hoặc dữ liệu không hợp lệ
+            if None in [cau_hoi, dap_an_a, dap_an_b, dap_an_c, dap_an_d, dap_an_dung]:
+                print(f"Câu hỏi không hợp lệ và bị bỏ qua: {cau_hoi}")
+                continue  # Bỏ qua câu hỏi này nếu có trường hợp null
+
+            # Chèn câu hỏi vào bảng Cau_hoi
+            cursor.execute(insert_sql_cau_hoi, (cau_hoi, dap_an_a, dap_an_b, dap_an_c, dap_an_d, dap_an_dung, maMT))
             inserted_count += 1
             print(f"Đã chèn câu hỏi: {cau_hoi}")
+
         except Exception as e:
             print(f"Lỗi khi chèn câu hỏi {cau_hoi}: {e}")
-            connection.rollback()  # Roll back if any question insertion fails
-            cursor.close()
-            return 0  # Return 0 if question insert fails
-    
-    # Commit all changes to the database if any questions were inserted
+
+    # Commit tất cả thay đổi nếu có ít nhất một câu hỏi được chèn
     if inserted_count > 0:
         connection.commit()
-        print(f"Đã chèn {inserted_count} câu hỏi mới vào bảng Cau_hoi.")
+        print(f"Đã chèn {inserted_count}/{len(questions)} câu hỏi vào bảng Cau_hoi.")
         return inserted_count  # Return the count of inserted questions
     else:
-        print("Không có câu hỏi nào được chèn.")
+        print("Không có câu hỏi nào được chèn vào database.")
         return 0  # Return 0 if no questions were inserted
 
     # Close the cursor
     cursor.close()
-
+    connection.close()
 
 
 
@@ -914,7 +933,7 @@ def ai_insert_data_endpoint():
     data = request.get_json()
     title = data.get("topic")
     nguon = data.get("source")
-    timestamp = data.get("timestamp") or datetime.now().isoformat()
+    timestamp =  datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     questions = data.get("questions", [])
 
     if not questions:
