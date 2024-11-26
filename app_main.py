@@ -70,7 +70,7 @@ def index_web():
 
 
 # Xóa câu hỏi
-@app.route('/app_web/web_delete_question/<int:id>')
+@app.route('/app_web/web_delete_question/<id>')
 def web_delete_question(id):
     connection = connect_db_web()
     if connection is None:
@@ -93,7 +93,7 @@ def web_delete_question(id):
 
 # Sửa câu hỏi
 # Sửa câu hỏi
-@app.route('/web_edit_question/<int:id>', methods=['GET', 'POST'])
+@app.route('/web_edit_question/<id>', methods=['GET', 'POST'])
 def web_edit_question(id):
     connection = connect_db_web()
     if connection is None:
@@ -463,14 +463,12 @@ def insert_data(connection, questions, title, nguon, url, timestamp):
         cursor = connection.cursor()
 
         # Chuyển đổi thời gian sang định dạng chuẩn SQL Server
-       # Sửa lại định dạng để khớp với chuỗi thời gian đầu vào
         try:
             thoi_gian = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
             formatted_timestamp = thoi_gian.strftime('%Y-%m-%d %H:%M:%S.000')
         except ValueError as e:
             print(f"Lỗi chuyển đổi thời gian: {e}")
             raise Exception("Thời gian không đúng định dạng.")
-
 
         # Kiểm tra nếu metadata đã tồn tại trong bảng Mota
         check_sql = """
@@ -484,32 +482,33 @@ def insert_data(connection, questions, title, nguon, url, timestamp):
             maMT = result[0]
             print(f"Metadata đã tồn tại với maMT: {maMT}")
         else:
-            # Thêm metadata vào bảng Mota
+            # Tạo mã MaMT mới nếu chưa tồn tại
+            # Tính toán mã MaMT mới theo định dạng MTTT_1, MTTT_2,...
+            # Lấy mã maMT lớn nhất trong bảng Mota
+            select_sql_maMT = "SELECT MAX(CAST(SUBSTRING(MaMT, 6, LEN(MaMT)) AS INT)) FROM Mota WHERE MaMT LIKE 'MTTT_%'"
+            cursor.execute(select_sql_maMT)
+            max_maMT_result = cursor.fetchone()
+
+            # Tính toán MaMT mới
+            if max_maMT_result[0] is not None:
+                new_maMT = f"MTTT_{max_maMT_result[0] + 1}"
+            else:
+                new_maMT = "MTTT_1"  # Nếu bảng chưa có bản ghi nào
+
+            # Thêm metadata vào bảng Mota với maMT tính toán
             insert_sql_dltt = """
-            INSERT INTO Mota (De_tai, Nguon, Link, Thoigian) 
-            VALUES (?, ?, ?, ?)
+            INSERT INTO Mota (MaMT, De_tai, Nguon, Link, Thoigian) 
+            VALUES (?, ?, ?, ?, ?)
             """
-            cursor.execute(insert_sql_dltt, (title, nguon, url, formatted_timestamp))
+            cursor.execute(insert_sql_dltt, (new_maMT, title, nguon, url, formatted_timestamp))
             connection.commit()  # Commit giao dịch để đảm bảo dữ liệu được lưu
 
-            # Lấy MaMT của bản ghi vừa thêm
-            select_sql_maMT = """
-            SELECT TOP 1 MaMT FROM Mota 
-            WHERE De_tai = ? AND Nguon = ? AND Thoigian = ?
-            ORDER BY MaMT DESC
-            """
-            cursor.execute(select_sql_maMT, (title, nguon, formatted_timestamp))
-            maMT_result = cursor.fetchone()
-
-            if not maMT_result or maMT_result[0] is None:
-                raise Exception("Không thể lấy giá trị MaMT mới.")
-            maMT = int(maMT_result[0])
-            print(f"Đã tạo metadata mới với maMT: {maMT}")
+            print(f"Đã tạo metadata mới với maMT: {new_maMT}")
 
         # Duyệt qua từng câu hỏi để chèn vào bảng Cau_hoi
         insert_sql_cau_hoi = """
-        INSERT INTO Cau_hoi (cau_hoi, dap_an_a, dap_an_b, dap_an_c, dap_an_d, dap_an_dung, Nguoi_kiem_duyet, maMT) 
-        VALUES (?, ?, ?, ?, ?, ?, null, ?)
+        INSERT INTO Cau_hoi (ID, cau_hoi, dap_an_a, dap_an_b, dap_an_c, dap_an_d, dap_an_dung, Nguoi_kiem_duyet, maMT) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, null, ?)
         """
 
         inserted_count = 0
@@ -522,8 +521,22 @@ def insert_data(connection, questions, title, nguon, url, timestamp):
                     print(f"Câu hỏi không hợp lệ và bị bỏ qua: {question}")
                     continue
 
+                # Lấy ID của câu hỏi, tính toán theo định dạng TT_1, TT_2, ...
+                select_sql_id = "SELECT MAX(ID) FROM Cau_hoi"
+                cursor.execute(select_sql_id)
+                max_id_result = cursor.fetchone()
+
+                if max_id_result and max_id_result[0]:
+                    # Tính toán ID mới theo định dạng TT_1, TT_2,...
+                    max_id = int(max_id_result[0].split('_')[1]) + 1
+                else:
+                    max_id = 1  # Nếu chưa có câu hỏi nào, bắt đầu từ 1
+
+                new_id = f"TT_{max_id}"  # Tạo ID mới theo định dạng TT_1, TT_2, ...
+                print(f"Đã tạo ID mới với ID: {new_id}")
+
                 # Chèn câu hỏi vào bảng Cau_hoi
-                cursor.execute(insert_sql_cau_hoi, (cau_hoi, dap_an_a, dap_an_b, dap_an_c, dap_an_d, dap_an_dung, maMT))
+                cursor.execute(insert_sql_cau_hoi, (new_id, cau_hoi, dap_an_a, dap_an_b, dap_an_c, dap_an_d, dap_an_dung, new_maMT))
                 inserted_count += 1
                 print(f"Đã chèn câu hỏi: {cau_hoi}")
 
@@ -655,7 +668,7 @@ def index_ai():
 
 
 # Xóa câu hỏi
-@app.route('/app_ai/ai_delete_question/<int:id>')
+@app.route('/app_ai/ai_delete_question/<id>')
 def ai_delete_question(id):
     connection = connect_db_ai()
     if connection is None:
@@ -679,7 +692,7 @@ def ai_delete_question(id):
 
 
 # Sửa câu hỏi
-@app.route('/ai_edit_question/<int:id>', methods=['GET', 'POST'])
+@app.route('/ai_edit_question/<id>', methods=['GET', 'POST'])
 def ai_edit_question(id):
     connection = connect_db_ai()
     if connection is None:
@@ -828,7 +841,10 @@ def ai_search_questions():
 
 
 def ai_insert_data(questions, title, nguon, timestamp):
-    # Connect to the database
+    """
+    Hàm để chèn dữ liệu vào bảng Cau_hoi và Mota với định dạng mã ID (TS_1, TS_2, ...) và maMT (MTTS_1, MTTS_2, ...).
+    """
+    # Kết nối cơ sở dữ liệu
     connection = connect_db_ai()
 
     # Kiểm tra nếu không có câu hỏi để chèn
@@ -858,35 +874,31 @@ def ai_insert_data(questions, title, nguon, timestamp):
         maMT = result[0]
         print(f"Metadata đã tồn tại với maMT: {maMT}")
     else:
+        # Tạo mã maMT mới theo định dạng MTTS_1, MTTS_2, ...
+        select_sql_maMT = "SELECT MAX(CAST(SUBSTRING(MaMT, 6, LEN(MaMT)) AS INT)) FROM Mota WHERE MaMT LIKE 'MTTS_%'"
+        cursor.execute(select_sql_maMT)
+        max_maMT_result = cursor.fetchone()
+
+        # Tính toán mã maMT mới
+        if max_maMT_result[0] is not None:
+            maMT = f"MTTS_{max_maMT_result[0] + 1}"
+        else:
+            maMT = "MTTS_1"  # Nếu bảng chưa có bản ghi nào
+
         # Thêm metadata vào bảng Mota
         insert_sql_dltt = """
-        INSERT INTO Mota (De_tai, Nguon, Thoigian) 
-        VALUES (?, ?, ?)
+        INSERT INTO Mota (MaMT, De_tai, Nguon, Thoigian) 
+        VALUES (?, ?, ?, ?)
         """
-        cursor.execute(insert_sql_dltt, (title, nguon, formatted_timestamp))
+        cursor.execute(insert_sql_dltt, (maMT, title, nguon, formatted_timestamp))
         connection.commit()  # Commit giao dịch để đảm bảo dữ liệu được lưu
 
-        # Lấy MaMT của bản ghi vừa thêm
-        select_sql_maMT = """
-        SELECT TOP 1 MaMT FROM Mota 
-        WHERE De_tai = ? AND Nguon = ? AND Thoigian = ?
-        ORDER BY MaMT DESC
-        """
-        cursor.execute(select_sql_maMT, (title, nguon, formatted_timestamp))
-        maMT_result = cursor.fetchone()
-
-        if not maMT_result or maMT_result[0] is None:
-            print("Lỗi: Không thể lấy giá trị MaMT mới.")
-            connection.rollback()  # Rollback nếu có lỗi
-            cursor.close()
-            return 0  # Return 0 if metadata insert fails
-        maMT = maMT_result[0]
         print(f"Đã tạo metadata mới với maMT: {maMT}")
 
     # Duyệt qua từng câu hỏi để chèn vào bảng Cau_hoi
     insert_sql_cau_hoi = """
-    INSERT INTO Cau_hoi (cau_hoi, dap_an_a, dap_an_b, dap_an_c, dap_an_d, dap_an_dung, Nguoi_kiem_duyet_1, Nguoi_kiem_duyet_2, maMT) 
-    VALUES (?, ?, ?, ?, ?, ?, null, null, ?)
+    INSERT INTO Cau_hoi (ID, cau_hoi, dap_an_a, dap_an_b, dap_an_c, dap_an_d, dap_an_dung, Nguoi_kiem_duyet_1, Nguoi_kiem_duyet_2, maMT) 
+    VALUES (?, ?, ?, ?, ?, ?, ?, null, null, ?)
     """
 
     inserted_count = 0
@@ -904,10 +916,20 @@ def ai_insert_data(questions, title, nguon, timestamp):
                 print(f"Câu hỏi không hợp lệ và bị bỏ qua: {cau_hoi}")
                 continue  # Bỏ qua câu hỏi này nếu có trường hợp null
 
+            # Tạo mã ID mới theo định dạng TS_1, TS_2, ...
+            select_sql_id = "SELECT MAX(CAST(SUBSTRING(ID, 4, LEN(ID)) AS INT)) FROM Cau_hoi WHERE ID LIKE 'TS_%'"
+            cursor.execute(select_sql_id)
+            max_id_result = cursor.fetchone()
+
+            if max_id_result[0] is not None:
+                new_id = f"TS_{max_id_result[0] + 1}"
+            else:
+                new_id = "TS_1"  # Nếu chưa có câu hỏi nào
+
             # Chèn câu hỏi vào bảng Cau_hoi
-            cursor.execute(insert_sql_cau_hoi, (cau_hoi, dap_an_a, dap_an_b, dap_an_c, dap_an_d, dap_an_dung, maMT))
+            cursor.execute(insert_sql_cau_hoi, (new_id, cau_hoi, dap_an_a, dap_an_b, dap_an_c, dap_an_d, dap_an_dung, maMT))
             inserted_count += 1
-            print(f"Đã chèn câu hỏi: {cau_hoi}")
+            print(f"Đã chèn câu hỏi: {cau_hoi} với ID: {new_id}")
 
         except Exception as e:
             print(f"Lỗi khi chèn câu hỏi {cau_hoi}: {e}")
@@ -921,7 +943,7 @@ def ai_insert_data(questions, title, nguon, timestamp):
         print("Không có câu hỏi nào được chèn vào database.")
         return 0  # Return 0 if no questions were inserted
 
-    # Close the cursor
+    # Đóng kết nối
     cursor.close()
     connection.close()
 
@@ -1066,7 +1088,7 @@ def tc_add_question():
 
         # Kiểm tra nếu thông tin đã tồn tại trong bảng Mota
         check_sql = """
-        SELECT MaMT FROM Mota 
+        SELECT maMT FROM Mota 
         WHERE De_tai = ? AND Nguon = ? AND Thoigian = ?
         """
         cursor.execute(check_sql, (question_data['de_tai'], question_data['nguon'], question_data['thoi_gian']))
@@ -1074,37 +1096,53 @@ def tc_add_question():
 
         if result:
             maMT = result[0]
-            print("Existing MaMT found:", maMT)
+            print("Existing maMT found:", maMT)
         else:
+            # Tạo maMT mới mà không ép kiểu int
+            # Lấy maMT mới nhất từ bảng Mota
+            select_max_maMT_sql = "SELECT MAX(maMT) FROM Mota"
+            cursor.execute(select_max_maMT_sql)
+            max_maMT_result = cursor.fetchone()
+
+            if max_maMT_result and max_maMT_result[0]:
+                # Lấy phần số sau dấu "_" và tăng lên
+                max_maMT = max_maMT_result[0].split('_')[1]
+                new_maMT = f"MTTC_{int(max_maMT) + 1}"
+            else:
+                new_maMT = "MTTC_1"  # Nếu chưa có maMT nào, bắt đầu từ 1
+
+            maMT = new_maMT
+            print("New maMT created:", maMT)
+
             # Thêm thông tin vào bảng Mota
             insert_sql_dltt = """
-            INSERT INTO Mota (De_tai, Nguon, Thoigian) 
-            VALUES (?, ?, ?)
+            INSERT INTO Mota (maMT, De_tai, Nguon, Thoigian) 
+            VALUES (?, ?, ?, ?)
             """
-            cursor.execute(insert_sql_dltt, (question_data['de_tai'], question_data['nguon'], question_data['thoi_gian']))
-            connection.commit()  # Xác nhận giao dịch trước khi truy vấn lại
+            cursor.execute(insert_sql_dltt, (maMT, question_data['de_tai'], question_data['nguon'], question_data['thoi_gian']))
+            connection.commit()
 
-            # Lấy MaMT của bản ghi vừa thêm
-            select_sql_maMT = """
-            SELECT TOP 1 MaMT FROM Mota 
-            WHERE De_tai = ? AND Nguon = ? AND Thoigian = ?
-            ORDER BY MaMT DESC
-            """
-            cursor.execute(select_sql_maMT, (question_data['de_tai'], question_data['nguon'], question_data['thoi_gian']))
-            maMT_result = cursor.fetchone()
+        # Tạo ID mới cho bảng Cau_hoi mà không ép kiểu int
+        select_max_id_sql = "SELECT MAX(ID) FROM Cau_hoi"
+        cursor.execute(select_max_id_sql)
+        max_id_result = cursor.fetchone()
 
-            if not maMT_result or maMT_result[0] is None:
-                raise Exception("Không thể lấy giá trị MaMT mới.")
-            maMT = int(maMT_result[0])
-            print("New MaMT created:", maMT)
+        if max_id_result and max_id_result[0]:
+            # Lấy phần số sau dấu "_" và tăng lên
+            max_id = max_id_result[0].split('_')[1]
+            new_id = f"TC_{int(max_id) + 1}"
+        else:
+            new_id = "TC_1"  # Nếu chưa có ID nào, bắt đầu từ 1
+
+        print("New ID created:", new_id)
 
         # Thêm câu hỏi vào bảng Cau_hoi
         insert_sql_cau_hoi = """
-        INSERT INTO Cau_hoi (cau_hoi, dap_an_a, dap_an_b, dap_an_c, dap_an_d, dap_an_dung, maMT) 
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO Cau_hoi (ID, cau_hoi, dap_an_a, dap_an_b, dap_an_c, dap_an_d, dap_an_dung, maMT) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """
         values_cau_hoi = (
-            question_data['cau_hoi'], question_data['dap_an_a'], question_data['dap_an_b'],
+            new_id, question_data['cau_hoi'], question_data['dap_an_a'], question_data['dap_an_b'],
             question_data['dap_an_c'], question_data['dap_an_d'], question_data['dap_an_dung'], maMT
         )
 
@@ -1129,7 +1167,7 @@ def tc_add_question():
 
 
 # Xóa câu hỏi
-@app.route('/app_tc/delete_question/<int:id>')
+@app.route('/app_tc/delete_question/<id>')
 def tc_delete_question(id):
     connection = tc_connect_db()
     if connection is None:
@@ -1150,7 +1188,7 @@ def tc_delete_question(id):
     return redirect(url_for('tc_index'))
 
 # Sửa câu hỏi
-@app.route('/tc_edit_question/<int:id>', methods=['GET', 'POST'])
+@app.route('/tc_edit_question/<id>', methods=['GET', 'POST'])
 def tc_edit_question(id):
     connection = tc_connect_db()
     if connection is None:
