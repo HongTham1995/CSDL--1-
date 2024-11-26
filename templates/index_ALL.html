@@ -123,6 +123,16 @@
 
         <!-- Search container với các trường tìm kiếm -->
         <div class="row mb-3 search-container d-flex align-items-center" style="gap: 50px;">
+            <div class="form-group d-flex align-items-center" style="margin-bottom: 0;">
+                <label for="data-type-select" style="font-weight: bold; margin-right: 5px;">Loại dữ liệu:</label>
+                <select class="form-control" id="data-type-select" name="data_type" onchange="submitSearch()" style="width: 200px;">
+                    <option value="all">Tất cả</option>
+                    <option value="TT">Dữ liệu web</option>
+                    <option value="TS">Dữ liệu tạo sinh</option>
+                    <option value="TC">Dữ liệu thủ công</option>
+                </select>
+            </div>
+            
             <!-- Combobox Đề tài -->
             <div class="form-group d-flex align-items-center" style="margin-bottom: 0;">
                 <label for="topic-select" style="font-weight: bold; margin-right: 5px;">Đề tài:</label>
@@ -279,53 +289,59 @@
 
 
         
-        function submitSearch() {
-            // Lấy giá trị từ các input
-            const topic = document.getElementById('topic-select').value;
-            const source = document.getElementById('source-input').value.trim();
-            const startDate = document.getElementById('start-date').value;
-            const endDate = document.getElementById('end-date').value;
-            const query = document.getElementById('search-input').value.trim();
+    function submitSearch() {
+    // Lấy giá trị từ các input
+    const topic = document.getElementById('topic-select').value;
+    const source = document.getElementById('source-input').value.trim();
+    const startDate = document.getElementById('start-date').value;
+    const endDate = document.getElementById('end-date').value;
+    const query = document.getElementById('search-input').value.trim();
+    const dataType = document.getElementById('data-type-select').value; // Lấy giá trị từ combobox loại dữ liệu
 
-            // Tạo URL động chỉ với các tham số không trống
-            let url = '/tc_search_questions?';
+    
+    // Tạo URL động chỉ với các tham số không trống
+    let url = '/all_search_questions?';
 
-            if (topic !== "all") {
-                url += `topic=${topic}&`;
-            }
-            if (source) {
-                url += `source=${source}&`;
-            }
-            if (startDate) {
-                url += `start_date=${startDate}&`;
-            }
-            if (endDate) {
-                url += `end_date=${endDate}&`;
-            }
-            if (query) {
-                url += `query=${query}&`;
-            }
+    if (topic !== "all") {
+        url += `topic=${topic}&`;
+    }
+    if (source) {
+        url += `source=${source}&`;
+    }
+    if (startDate) {
+        url += `start_date=${startDate}&`;
+    }
+    if (endDate) {
+        url += `end_date=${endDate}&`;
+    }
+    if (query) {
+        url += `query=${query}&`;
+    }
+    if (dataType !== "all") {
+        url += `data_type=${dataType}&`; // Thêm loại dữ liệu đã được chuyển đổi
+       
+    }
 
-            // Loại bỏ dấu & cuối cùng nếu có
-            if (url.charAt(url.length - 1) === '&') {
-                url = url.slice(0, -1);
-            }
+    // Loại bỏ dấu & cuối cùng nếu có
+    if (url.charAt(url.length - 1) === '&') {
+        url = url.slice(0, -1);
+    }
 
-            // Gửi yêu cầu AJAX để lấy dữ liệu từ server
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        console.log("Questions:", data.questions); // Xử lý dữ liệu trả về
-                        updateResults(data.questions); // Cập nhật kết quả lên bảng
-                    } else {
-                        console.error("Error:", data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error("Error fetching data:", error);
-                });
-        }
+    // Gửi yêu cầu AJAX để lấy dữ liệu từ server
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log("Questions:", data.questions); // Xử lý dữ liệu trả về
+                updateResults(data.questions); // Cập nhật kết quả lên bảng
+            } else {
+                console.error("Error:", data.message);
+            }
+        })
+        .catch(error => {
+            console.error("Error fetching data:", error);
+        });
+}
 
 function updateResults(questions) {
     const tableBody = document.getElementById('dataTable').getElementsByTagName('tbody')[0];
@@ -348,11 +364,15 @@ function updateResults(questions) {
                         data-correct_answer="${question.dap_an_dung}"
                         data-detai="${question.De_tai}" 
                         data-nguon="${question.Nguon}" 
-                        data-thoigian="${question.Thoigian}">
+                        data-thoigian="${question.Thoigian}"
+                        data-reviewer_1="${question.Nguoi_kiem_duyet_1 }" 
+                        data-reviewer_2="${question.Nguoi_kiem_duyet_2 }">
                     Xem
                 </button>
                                   
                
+               
+
 
             </td>
         `;

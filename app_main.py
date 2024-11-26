@@ -166,12 +166,12 @@ def web_edit_question(id):
 # TÌM
 @app.route('/web_search_questions', methods=['GET'])
 def web_search_questions():
-    query = request.args.get('query', '')
     source = request.args.get('source', '')
     topic = request.args.get('topic', '')
     start_date = request.args.get('start_date', '')
     end_date = request.args.get('end_date', '')
-
+    data_type = request.args.get('data_type', '')  # Lấy thêm data_type từ request
+    
     # Xử lý và định dạng ngày tháng
     if start_date:
         start_date = start_date.replace('T', ' ') + ":00.000"
@@ -213,9 +213,7 @@ def web_search_questions():
         conditions = []
         params = []
 
-        if query:
-            conditions.append("(ch.cau_hoi LIKE ? OR ch.ID LIKE ?)")
-            params.extend([f"%{query}%", f"%{query}%"])
+        
         if source:
             conditions.append("m.Nguon LIKE ?")
             params.append(f"%{source}%")
@@ -229,17 +227,22 @@ def web_search_questions():
             conditions.append("m.Thoigian <= ?")
             params.append(end_date)
 
+        if data_type == "revised":
+            conditions.append("ch.Nguoi_kiem_duyet IS NOT NULL")
+        elif data_type == "unrevised":
+            conditions.append("ch.Nguoi_kiem_duyet IS NULL")
+
         if not conditions:
             conditions.append("1=1")
 
         query_sql += " AND ".join(conditions)
-
+        
         cursor.execute(query_sql, params)
 
         # Lấy dữ liệu và chuyển thành danh sách các câu hỏi
         rows = cursor.fetchall()
         questions = [dict(zip([column[0] for column in cursor.description], row)) for row in rows]
-
+       
         return jsonify({"success": True, "questions": questions})
 
     except Exception as e:
@@ -757,12 +760,13 @@ def ai_edit_question(id):
 # Tìm kiếm câu hỏi
 @app.route('/ai_search_questions', methods=['GET'])
 def ai_search_questions():
-    query = request.args.get('query', '')
+   
     source = request.args.get('source', '')
     topic = request.args.get('topic', '')
     start_date = request.args.get('start_date', '')
     end_date = request.args.get('end_date', '')
-
+    data_type = request.args.get('data_type', '')
+    print("datatype"+data_type)
     # Xử lý và định dạng ngày tháng
     if start_date:
         start_date = start_date.replace('T', ' ') + ":00.000"
@@ -803,9 +807,6 @@ def ai_search_questions():
         conditions = []
         params = []
 
-        if query:
-            conditions.append("(ch.cau_hoi LIKE ? OR ch.ID LIKE ?)")
-            params.extend([f"%{query}%", f"%{query}%"])
         if source:
             conditions.append("m.Nguon LIKE ?")
             params.append(f"%{source}%")
@@ -818,12 +819,17 @@ def ai_search_questions():
         if end_date:
             conditions.append("m.Thoigian <= ?")
             params.append(end_date)
+        if data_type == "revised":
+            conditions.append("ch.Nguoi_kiem_duyet_1 IS NOT NULL AND ch.Nguoi_kiem_duyet_2 IS NOT NULL")
+        elif data_type == "unrevised":
+            conditions.append("ch.Nguoi_kiem_duyet_1 IS NULL OR ch.Nguoi_kiem_duyet_2 IS NULL")
+
 
         if not conditions:
             conditions.append("1=1")
 
         query_sql += " AND ".join(conditions)
-
+        print("sql: "+query_sql)
         cursor.execute(query_sql, params)
 
         # Lấy dữ liệu và chuyển thành danh sách các câu hỏi
@@ -1391,6 +1397,101 @@ def index_all():
         connection.close()
     print(questions)
     return render_template('index_ALL.html', questions=questions)
+
+
+# Tìm kiếm câu hỏi
+@app.route('/all_search_questions', methods=['GET'])
+def all_search_questions():
+    query = request.args.get('query', '')
+    source = request.args.get('source', '')
+    topic = request.args.get('topic', '')
+    start_date = request.args.get('start_date', '')
+    end_date = request.args.get('end_date', '')
+    data_type = request.args.get('data_type', '')  # Lấy thêm data_type từ request
+   
+    # Xử lý và định dạng ngày tháng
+    if start_date:
+        start_date = start_date.replace('T', ' ') + ":00.000"
+    if end_date:
+        end_date = end_date.replace('T', ' ') + ":59.999"
+
+    connection = connect_db_all()
+
+    if connection is None:
+        return jsonify({"success": False, "message": "Lỗi kết nối cơ sở dữ liệu"})
+
+    cursor = connection.cursor()
+
+    try:
+        # Xây dựng câu truy vấn SQL
+        query_sql = """
+            SELECT 
+                ch.ID, 
+                ch.cau_hoi, 
+                ch.dap_an_a, 
+                ch.dap_an_b, 
+                ch.dap_an_c, 
+                ch.dap_an_d, 
+                ch.dap_an_dung, 
+                m.De_tai, 
+                m.Nguon, 
+                m.Thoigian,
+                ch.Nguoi_kiem_duyet_1,
+                ch.Nguoi_kiem_duyet_2
+            FROM 
+                Cau_hoi AS ch
+            JOIN 
+                Mota AS m 
+            ON 
+                ch.maMT = m.maMT
+            WHERE 
+        """
+        conditions = []
+        params = []
+
+        # Thêm điều kiện tìm kiếm
+        if query:
+            conditions.append("(ch.cau_hoi LIKE ? OR ch.ID LIKE ?)")
+            params.extend([f"%{query}%", f"%{query}%"])
+        if source:
+            conditions.append("m.Nguon LIKE ?")
+            params.append(f"%{source}%")
+        if topic != "all":
+            conditions.append("m.De_tai LIKE ?")
+            params.append(f"%{topic}%")
+        if start_date:
+            conditions.append("m.Thoigian >= ?")
+            params.append(start_date)
+        if end_date:
+            conditions.append("m.Thoigian <= ?")
+            params.append(end_date)
+
+        # Thêm điều kiện lọc dựa trên data_type
+        if data_type != "all":
+            conditions.append("ch.ID LIKE ?")
+            params.append(f"%{data_type}%")
+
+        # Nếu không có điều kiện nào, thêm 1=1
+        if not conditions:
+            conditions.append("1=1")
+
+        query_sql += " AND ".join(conditions)
+
+        cursor.execute(query_sql, params)
+
+        # Lấy dữ liệu và chuyển thành danh sách các câu hỏi
+        rows = cursor.fetchall()
+        questions = [dict(zip([column[0] for column in cursor.description], row)) for row in rows]
+
+        return jsonify({"success": True, "questions": questions})
+
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+    finally:
+        cursor.close()
+        connection.close()
+
 
 @app.route('/app_all')
 def app_all():
