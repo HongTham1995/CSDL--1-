@@ -334,9 +334,6 @@
         var reviewer_1 = button.data('reviewer_1');  // Reviewer 1
         var reviewer_2 = button.data('reviewer_2');  // Reviewer 2
 
-        // Fallback values if reviewers are not available
-        reviewer_1 = reviewer_1 ? reviewer_1 : "Chưa có";
-        reviewer_2 = reviewer_2 ? reviewer_2 : "Chưa có";
         
         // Populate the modal form fields with the data
         var modal = $(this);
@@ -349,7 +346,7 @@
         modal.find('#edit-correct_answer').val(correct_answer);
         modal.find('#edit-reviewer_1').val(reviewer_1); // Populate reviewer_1
         modal.find('#edit-reviewer_2').val(reviewer_2); // Populate reviewer_2
-        
+        alert(id)
         // Update the form action to make the POST request to the correct route
         modal.find('#edit-form').attr('action', '/ai_edit_question/' + id);
     });
